@@ -7,10 +7,12 @@ interface AnswerInputProps {
   setAnswer: (answer: string) => void
   maxLength: number
   onSubmit: () => void
+  onWidthChange?: (width: number) => void
 }
 
-export default function AnswerInput({ answer, setAnswer, maxLength, onSubmit }: AnswerInputProps) {
+export default function AnswerInput({ answer, setAnswer, maxLength, onSubmit, onWidthChange }: AnswerInputProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const previousAnswerRef = useRef<string>('')
 
   useEffect(() => {
@@ -101,8 +103,18 @@ export default function AnswerInput({ answer, setAnswer, maxLength, onSubmit }: 
     previousAnswerRef.current = answer
   }, [answer])
 
+  // Calculate and notify width when maxLength changes
+  useEffect(() => {
+    if (containerRef.current && onWidthChange) {
+      // Calculate width: (maxLength * 36px) + ((maxLength - 1) * 8px gap)
+      const width = (maxLength * 36) + ((maxLength - 1) * 8)
+      onWidthChange(width)
+    }
+  }, [maxLength, onWidthChange])
+
   return (
     <div 
+      ref={containerRef}
       className="flex items-center justify-center gap-2 flex-shrink-0 relative cursor-text w-full"
       onClick={handleBoxClick}
       onFocus={handleBoxClick}

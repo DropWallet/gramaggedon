@@ -32,6 +32,7 @@ function DailyGameClient() {
   const [upcomingRound, setUpcomingRound] = useState<number | null>(null)
   const [isWinner, setIsWinner] = useState(false)
   const isLoadingRef = useRef(false)
+  const [inputWidth, setInputWidth] = useState<number>(220) // Will be updated by AnswerInput
 
   // Debug: Complete the round when pressing UP arrow key
   useEffect(() => {
@@ -270,13 +271,24 @@ function DailyGameClient() {
   useEffect(() => {
     if (showInterim) return
     if (!currentRound?.startedAt) return
+    if (submitting) return // Don't check death condition while submitting
+    if (!data) return // Don't check if data is loading
+    
     const start = new Date(currentRound.startedAt).getTime()
-    if (Date.now() - start < 1000) return
-    if (remainingSeconds === 0) {
+    const timeSinceStart = Date.now() - start
+    
+    // Ignore first 1s after start to prevent false triggers
+    if (timeSinceStart < 1000) return
+    
+    // Only trigger death if time is actually expired (not just calculated as 0 due to rounding)
+    // Check that at least 1 second has passed since the round should have ended
+    const roundDuration = (currentRound.timeSeconds || 120) * 1000
+    const expectedEnd = start + roundDuration
+    if (Date.now() >= expectedEnd + 1000) { // Add 1s buffer to prevent false triggers
       const anyUnsolved = currentRound.words.some((w: any) => !w.solvedAt)
       if (anyUnsolved) setIsDead(true)
     }
-  }, [remainingSeconds, currentRound, showInterim])
+  }, [remainingSeconds, currentRound, showInterim, submitting, data])
 
   // Interim countdown effect
   useEffect(() => {
@@ -471,7 +483,7 @@ function DailyGameClient() {
         </div>
 
         {/* Game content */}
-        <div className="flex flex-col items-center justify-center max-md:justify-start gap-8 flex-1 self-stretch relative w-full max-w-[440px] mx-auto max-md:mt-[72px]">
+        <div className="flex flex-col items-center justify-center max-md:justify-start gap-8 max-md:gap-6 flex-1 self-stretch relative w-full max-w-[440px] mx-auto max-md:mt-[72px]">
 
           {/* Word count with checked dots */}
           <div className="game-word-count flex-grow-0 flex-shrink-0 relative">
@@ -501,6 +513,7 @@ function DailyGameClient() {
               setAnswer={setAnswer}
               maxLength={maxLength}
               onSubmit={submit}
+              onWidthChange={setInputWidth}
             />
 
             <SubmitButton
@@ -508,7 +521,7 @@ function DailyGameClient() {
               disabled={!answer.trim() || submitting}
               isLoading={submitting}
               fullWidth={false}
-              width={220}
+              width={inputWidth}
             />
           </div>
         </div>

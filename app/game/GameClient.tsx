@@ -73,6 +73,7 @@ export default function GameClient({ initialGameResult }: GameClientProps) {
   const [isWinner, setIsWinner] = useState(false)
   const [isEliminated, setIsEliminated] = useState(false)
   const [lockedRoundNumber, setLockedRoundNumber] = useState<number | null>(null)
+  const [inputWidth, setInputWidth] = useState<number>(220)
   const [isLoadingSuccessScreen, setIsLoadingSuccessScreen] = useState(false)
 
   // Debug: Always set up keyboard listener on mount
@@ -830,7 +831,7 @@ export default function GameClient({ initialGameResult }: GameClientProps) {
         </div>
 
         {/* Game content */}
-        <div className="flex flex-col items-center justify-center max-md:justify-start gap-8 flex-1 self-stretch relative w-full max-w-[440px] mx-auto max-md:mt-[72px]">
+        <div className="flex flex-col items-center justify-center max-md:justify-start gap-8 max-md:gap-6 flex-1 self-stretch relative w-full max-w-[440px] mx-auto max-md:mt-[72px]">
           {/* Word count with checked dots */}
           <div className="game-word-count flex-grow-0 flex-shrink-0 relative">
             <p className="flex-grow-0 flex-shrink-0 text-info-small text-[color:var(--color-accent-pink)]">
@@ -859,6 +860,7 @@ export default function GameClient({ initialGameResult }: GameClientProps) {
               setAnswer={setAnswer}
               maxLength={currentAnagram.anagram.length}
               onSubmit={handleSubmit}
+              onWidthChange={setInputWidth}
             />
 
             {/* Submit Button - hide during transition */}
@@ -868,6 +870,7 @@ export default function GameClient({ initialGameResult }: GameClientProps) {
                 disabled={!answer.trim() || isSubmitting}
                 isLoading={isSubmitting}
                 fullWidth={false}
+                width={inputWidth}
               />
             )}
           </div>

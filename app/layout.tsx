@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Fraunces, Manrope, Inknut_Antiqua, Rubik } from 'next/font/google'
 import './globals.css'
 import SessionProvider from '@/components/auth/SessionProvider'
+import ScanlineSpeed from '@/components/ScanlineSpeed'
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -41,6 +42,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${fraunces.variable} ${manrope.variable} ${inknut.variable} ${rubik.variable}`}>
       <body className="font-sans">
+        <ScanlineSpeed />
         <SessionProvider>{children}</SessionProvider>
       </body>
     </html>

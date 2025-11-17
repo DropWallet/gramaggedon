@@ -68,6 +68,9 @@
 .scanlines {
   overflow: hidden;
   position: relative;
+  /* Default animation duration - will be overridden by JS */
+  --scanline-duration: 30s;
+  --scanlines-duration: 10s;
 }
 .scanlines:before,
 .scanlines:after {
@@ -82,7 +85,7 @@
   z-index: 2147483649;
   background: rgba(0, 0, 0, 0.3);
   opacity: 0.75;
-  animation: scanline 30s linear infinite;
+  animation: scanline var(--scanline-duration) linear infinite;
 }
 .scanlines:after {
   top: 0;
@@ -96,7 +99,7 @@
     rgba(0, 0, 0, 0.3) 51%
   );
   background-size: 100% 4px;
-  animation: scanlines 10s steps(60) infinite;
+  animation: scanlines var(--scanlines-duration) steps(60) infinite;
 }
 
 /* ANIMATE UNIQUE SCANLINE */
