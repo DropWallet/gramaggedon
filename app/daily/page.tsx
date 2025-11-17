@@ -462,6 +462,9 @@ function DailyGameClient() {
     setSubmitting(false)
 
     if (payload.isCorrect) {
+      // Track successful submission time to prevent false death triggers
+      lastSuccessfulSubmissionRef.current = Date.now()
+      
       setShowSuccess("Fuckin' nailed it.")
       setTimeout(() => setShowSuccess(null), 2000)
       // Optimistically advance current word
