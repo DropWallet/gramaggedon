@@ -34,6 +34,7 @@ function DailyGameClient() {
   const isLoadingRef = useRef(false)
   const [inputWidth, setInputWidth] = useState<number>(220) // Will be updated by AnswerInput
   const nextRoundDataRef = useRef<any>(null) // Preloaded data for next round (using ref to avoid closure issues)
+  const pendingReloadRef = useRef<ReturnType<typeof setTimeout> | null>(null) // Track pending reloads to prevent multiple concurrent reloads
 
   // Debug: Complete the round when pressing UP arrow key
   useEffect(() => {
@@ -213,7 +214,10 @@ function DailyGameClient() {
   }
 
   async function load() {
-    if (isLoadingRef.current) return
+    if (isLoadingRef.current) {
+      console.log('Load already in progress, skipping')
+      return // Return early to prevent race conditions
+    }
     isLoadingRef.current = true
     
     try {
@@ -248,10 +252,11 @@ function DailyGameClient() {
     if (isLoadingRef.current) return // Already loading
     
     let cancelled = false
+    let mounted = true
     
     ;(async () => {
       const ok = await start()
-      if (cancelled) return
+      if (cancelled || !mounted) return
       if (!ok) {
         await load()
       }
@@ -259,6 +264,7 @@ function DailyGameClient() {
     
     return () => {
       cancelled = true
+      mounted = false
     }
   }, [sessionId])
 
@@ -266,6 +272,16 @@ function DailyGameClient() {
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 500)
     return () => clearInterval(t)
+  }, [])
+
+  // Cleanup pending reloads on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingReloadRef.current) {
+        clearTimeout(pendingReloadRef.current)
+        pendingReloadRef.current = null
+      }
+    }
   }, [])
 
   const game = data?.game
@@ -447,46 +463,28 @@ function DailyGameClient() {
         if (payload.isGameComplete) {
           setIsWinner(true)
         } else {
-          setUpcomingRound((game.currentRound || 1) + 1)
+          // Use server's nextRound, not client calculation (prevents round jumping)
+          setUpcomingRound(payload.nextRound || (game.currentRound || 1) + 1)
           setShowInterim(true)
         }
       } else {
-        // Not round complete: pull fresh state in background to sync attempts
-        // Add a delay to ensure database has been updated, and merge with optimistic update
-        setTimeout(async () => {
+        // Not round complete: simple reload after delay to sync state
+        // Clear any pending reload first
+        if (pendingReloadRef.current) {
+          clearTimeout(pendingReloadRef.current)
+        }
+        pendingReloadRef.current = setTimeout(async () => {
           const qs = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ''
           const res = await fetch(`/api/daily/data${qs}`, { cache: 'no-store' })
           if (res.ok) {
             const newData = await res.json()
             if (newData && newData.game) {
-              // Merge with current optimistic state - preserve solvedAt timestamps
-              setData((prev: any) => {
-                if (!prev) return newData
-                const clone = JSON.parse(JSON.stringify(prev))
-                const g = clone.game
-                const r = g.rounds.find((rr: any) => rr.roundNumber === g.currentRound)
-                if (r) {
-                  // Preserve solvedAt from optimistic update if it exists
-                  const newRound = newData.game.rounds.find((rr: any) => rr.roundNumber === g.currentRound)
-                  if (newRound) {
-                    r.words.forEach((w: any, idx: number) => {
-                      const newWord = newRound.words[idx]
-                      if (w.solvedAt && (!newWord || !newWord.solvedAt)) {
-                        // Keep optimistic solvedAt if new data doesn't have it yet
-                        if (newWord) newWord.solvedAt = w.solvedAt
-                      }
-                    })
-                    r.words = newRound.words
-                  }
-                }
-                // Update other fields from newData
-                clone.game.status = newData.game.status
-                clone.game.currentRound = newData.game.currentRound
-                return clone
-              })
+              // Simple replace - don't try to merge (prevents sync issues)
+              setData(newData)
             }
           }
-        }, 500) // Increased delay to 500ms to ensure DB commit
+          pendingReloadRef.current = null
+        }, 800) // Increased delay to ensure DB commit
       }
     } else {
       // Wrong answer: keep current anagram and do not reload (prevents anagram change)

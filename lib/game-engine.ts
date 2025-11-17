@@ -380,14 +380,62 @@ export async function getActiveDailyGame(userId?: string | null, sessionId?: str
     return null
   }
   
-  return prisma.gameResult.findFirst({
+  const result = await prisma.gameResult.findFirst({
     where: {
       OR: orConditions,
-      game: { startedAt: { gte: today, lt: tomorrow }, status: 'IN_PROGRESS' },
+      game: { 
+        startedAt: { gte: today, lt: tomorrow }, 
+        status: { not: 'COMPLETED' } // Include IN_PROGRESS games
+      },
     },
     orderBy: { game: { startedAt: 'desc' } },
     include: { game: { include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } } },
   })
+  
+  // If game exists but is in invalid state (round 2+ without completing round 1), reset it
+  if (result) {
+    const g = result.game
+    const round1 = g.rounds?.find(r => r.roundNumber === 1)
+    const round1Complete = round1?.words.every(w => w.solvedAt) || false
+    
+    // If we're past round 1 but round 1 wasn't completed, reset to round 1
+    if (g.currentRound > 1 && !round1Complete) {
+      console.log(`Game in invalid state (round ${g.currentRound} but round 1 not complete) - resetting to round 1 for user ${userId || sessionId}`)
+      
+      // Reset game to round 1
+      await prisma.game.update({ 
+        where: { id: g.id }, 
+        data: { 
+          currentRound: 1,
+          status: 'IN_PROGRESS'
+        } 
+      })
+      
+      // Reset all rounds - clear solved words and reset timers
+      for (const round of g.rounds || []) {
+        await prisma.roundWord.updateMany({
+          where: { gameRoundId: round.id },
+          data: { solvedAt: null, attempts: 0 }
+        })
+        await prisma.gameRound.update({
+          where: { id: round.id },
+          data: { 
+            startedAt: round.roundNumber === 1 ? new Date() : null, 
+            endedAt: null 
+          }
+        })
+      }
+      
+      // Fetch and return the refreshed game
+      const refreshed = await prisma.gameResult.findFirst({
+        where: { id: result.id },
+        include: { game: { include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } } },
+      })
+      return refreshed
+    }
+  }
+  
+  return result
 }
 
 export async function submitDailyAnswer(opts: { gameId: string; roundNumber: number; guess: string }) {
