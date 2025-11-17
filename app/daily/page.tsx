@@ -309,22 +309,34 @@ function DailyGameClient() {
     if (submitting) return // Don't check death condition while submitting
     if (!data) return // Don't check if data is loading
     if (loading) return // Don't check while loading data
+    if (isDead) return // Already dead, don't check again
     
     const start = new Date(currentRound.startedAt).getTime()
     const timeSinceStart = Date.now() - start
     
-    // Ignore first 2s after start to prevent false triggers (increased buffer)
-    if (timeSinceStart < 2000) return
+    // Ignore first 1s after start to prevent false triggers
+    if (timeSinceStart < 1000) return
     
-    // Only trigger death if time is actually expired (not just calculated as 0 due to rounding)
-    // Check that at least 2 seconds have passed since the round should have ended
+    // Check if time has expired
     const roundDuration = (currentRound.timeSeconds || 120) * 1000
     const expectedEnd = start + roundDuration
-    if (Date.now() >= expectedEnd + 2000) { // Add 2s buffer to prevent false triggers
+    const currentTime = Date.now()
+    
+    // Trigger death if time has expired (with a small buffer to account for timing)
+    if (currentTime >= expectedEnd) {
       const anyUnsolved = currentRound.words.some((w: any) => !w.solvedAt)
-      if (anyUnsolved) setIsDead(true)
+      if (anyUnsolved) {
+        console.log('Death condition triggered:', {
+          currentTime,
+          expectedEnd,
+          timeSinceStart,
+          roundDuration,
+          anyUnsolved
+        })
+        setIsDead(true)
+      }
     }
-  }, [remainingSeconds, currentRound, showInterim, submitting, data, loading])
+  }, [remainingSeconds, currentRound, showInterim, submitting, data, loading, isDead, now])
 
   // Interim countdown effect
   useEffect(() => {
