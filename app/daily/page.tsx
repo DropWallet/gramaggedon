@@ -31,6 +31,7 @@ function DailyGameClient() {
   const [interimSeconds, setInterimSeconds] = useState(5)
   const [upcomingRound, setUpcomingRound] = useState<number | null>(null)
   const [isWinner, setIsWinner] = useState(false)
+  const [deathWord, setDeathWord] = useState<string | null>(null) // Store the word that caused death
   const isLoadingRef = useRef(false)
   const [inputWidth, setInputWidth] = useState<number>(220) // Will be updated by AnswerInput
   const nextRoundDataRef = useRef<any>(null) // Preloaded data for next round (using ref to avoid closure issues)
@@ -343,13 +344,26 @@ function DailyGameClient() {
     if (currentTime >= expectedEnd) {
       const anyUnsolved = currentRound.words.some((w: any) => !w.solvedAt)
       if (anyUnsolved) {
+        // Capture the first unsolved word at the moment of death
+        const firstUnsolvedWord = currentRound.words.find((w: any) => !w.solvedAt && w.solution)
+        const wordToShow = firstUnsolvedWord?.solution || ''
+        
         console.log('Death condition triggered:', {
           currentTime,
           expectedEnd,
           timeSinceStart,
           roundDuration,
-          anyUnsolved
+          anyUnsolved,
+          deathWord: wordToShow,
+          currentRoundNumber: game?.currentRound,
+          roundWords: currentRound.words.map((w: any) => ({ 
+            index: w.index, 
+            solvedAt: w.solvedAt, 
+            solution: w.solution?.substring(0, 5) 
+          }))
         })
+        
+        setDeathWord(wordToShow) // Store the word that caused death
         setIsDead(true)
       }
     }
@@ -506,7 +520,8 @@ function DailyGameClient() {
   if (!data) return <div className="min-h-screen flex items-center justify-center scanlines">No daily game</div>
 
   if (isDead) {
-    const correctWord = nextWord?.solution || ''
+    // Use the stored death word (captured at moment of death) or fallback to nextWord
+    const correctWord = deathWord || nextWord?.solution || ''
     // Convert daily game data to DeathScreen format
     const deathScreenData = data ? {
       game: {
