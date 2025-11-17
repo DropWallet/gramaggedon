@@ -280,11 +280,12 @@ function DailyGameClient() {
   
   // Safely get next word and solved count, ensuring we have valid data
   // Only count solved words from the current round
-  const nextWord = currentRound?.words?.find((w: any) => !w.solvedAt && w.anagram)
+  const nextWord = currentRound?.words?.find((w: any) => !w.solvedAt && w.anagram && w.anagram.length > 0)
   const solvedCount = currentRound?.words?.filter((w: any) => w.solvedAt).length || 0
   
   // Safety check: if we don't have a valid nextWord but round exists, data might be stale
-  if (!nextWord && currentRound && currentRound.words && currentRound.words.length > 0) {
+  // If loading, don't show warnings as data is being refreshed
+  if (!loading && !nextWord && currentRound && currentRound.words && currentRound.words.length > 0) {
     const allSolved = currentRound.words.every((w: any) => w.solvedAt)
     if (!allSolved) {
       // Data issue - log for debugging
@@ -294,7 +295,7 @@ function DailyGameClient() {
       })
     }
   }
-
+  
   const remainingSeconds = useMemo(() => {
     if (!currentRound?.startedAt) return 120
     const start = new Date(currentRound.startedAt).getTime()
@@ -335,6 +336,8 @@ function DailyGameClient() {
         if (s <= 1) {
           clearInterval(timer)
           setShowInterim(false)
+          // Set loading state to prevent showing stale data
+          setLoading(true)
           ;(async () => {
             // Start the next round now, then load with retry logic
             if (data?.game?.id) {
@@ -356,6 +359,7 @@ function DailyGameClient() {
             // Load with retry logic - fetch directly to ensure fresh data
             const qs = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ''
             let retries = 3
+            let success = false
             while (retries > 0) {
               try {
                 const res = await fetch(`/api/daily/data${qs}`, { cache: 'no-store' })
@@ -364,16 +368,32 @@ function DailyGameClient() {
                   if (newData?.game?.rounds) {
                     const newRound = newData.game.rounds.find((r: any) => r.roundNumber === newData.game.currentRound)
                     if (newRound && newRound.words && newRound.words.length > 0) {
-                      // Valid data received for the new round, update state
-                      setData(newData)
-                      break
+                      // Verify all words are from the new round and have anagrams
+                      const allWordsValid = newRound.words.every((w: any) => w.anagram && w.anagram.length > 0)
+                      if (allWordsValid) {
+                        // Valid data received for the new round, update state
+                        setData(newData)
+                        setLoading(false)
+                        success = true
+                        break
+                      } else {
+                        console.warn('Round words invalid, retrying...', { 
+                          currentRound: newData.game.currentRound,
+                          words: newRound.words.map((w: any) => ({ hasAnagram: !!w.anagram, anagramLength: w.anagram?.length }))
+                        })
+                      }
                     } else {
-                      console.warn('Round data incomplete, retrying...', { currentRound: newData.game.currentRound, roundExists: !!newRound })
+                      console.warn('Round data incomplete, retrying...', { 
+                        currentRound: newData.game.currentRound, 
+                        roundExists: !!newRound,
+                        wordsCount: newRound?.words?.length 
+                      })
                     }
                   }
                 } else if (res.status === 404) {
                   console.error('Game not found (404) after round transition - this should not happen')
                   // Don't retry on 404, it means the game doesn't exist
+                  setLoading(false)
                   break
                 }
                 retries--
@@ -388,6 +408,11 @@ function DailyGameClient() {
                   await new Promise(resolve => setTimeout(resolve, 300))
                 }
               }
+            }
+            if (!success) {
+              // If we exhausted retries, still set loading to false to show something
+              setLoading(false)
+              console.error('Failed to load new round data after all retries')
             }
           })()
           return 0
@@ -492,6 +517,34 @@ function DailyGameClient() {
     </div>
   )
   if (!data) return <div className="min-h-screen flex items-center justify-center scanlines">No daily game</div>
+  
+  // Don't render game UI if we don't have valid data (show loader instead)
+  // This prevents showing stale data from previous rounds
+  if (!currentRound || !nextWord || !nextWord.anagram || nextWord.anagram.length === 0) {
+    // If we have data but no valid word, something is wrong - show loader to retry
+    if (data && game) {
+      console.warn('Invalid game state - missing currentRound or nextWord', {
+        hasCurrentRound: !!currentRound,
+        hasNextWord: !!nextWord,
+        hasAnagram: !!nextWord?.anagram,
+        anagramLength: nextWord?.anagram?.length,
+        currentRoundNumber: game.currentRound,
+        rounds: game.rounds?.map((r: any) => ({ roundNumber: r.roundNumber, wordsCount: r.words?.length }))
+      })
+      // Trigger a reload
+      if (!isLoadingRef.current) {
+        setLoading(true)
+        setTimeout(() => load(), 500)
+      }
+      return (
+        <div className="home-shell home-shell--tight scanlines">
+          <main className="home-main flex flex-col items-center !justify-center px-8">
+            <span className="loader"></span>
+          </main>
+        </div>
+      )
+    }
+  }
 
   if (isDead) {
     const correctWord = nextWord?.solution || ''
