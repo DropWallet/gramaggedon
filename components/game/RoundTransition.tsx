@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import ConfettiEffect from '@/components/ConfettiEffect'
 
 interface RoundTransitionProps {
   nextRound: number
@@ -51,6 +52,7 @@ export default function RoundTransition({ nextRound, countdownSeconds, onCountdo
 
   return (
     <div className="home-shell scanlines">
+      <ConfettiEffect duration={5000} />
       <main className="home-main flex flex-col !justify-center items-center">
         <div className="flex flex-col items-center">
           <div className="flex flex-col items-center gap-2">

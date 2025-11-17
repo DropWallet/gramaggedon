@@ -8,6 +8,7 @@ import VictoryScreen from '@/components/game/VictoryScreen'
 import AnagramDisplay from '@/components/game/AnagramDisplay'
 import SuccessBanner from '@/components/game/SuccessBanner'
 import ErrorBanner from '@/components/game/ErrorBanner'
+import ConfettiEffect from '@/components/ConfettiEffect'
 
 export default function DailyPage() {
   return (
@@ -465,7 +466,7 @@ function DailyGameClient() {
       lastSuccessfulSubmissionRef.current = Date.now()
       
       setShowSuccess("Fuckin' nailed it.")
-      setTimeout(() => setShowSuccess(null), 2000)
+      setTimeout(() => setShowSuccess(null), 2500)
       // Optimistically advance current word
       setData((prev: any) => {
         if (!prev) return prev
@@ -513,7 +514,7 @@ function DailyGameClient() {
     } else {
       // Wrong answer: keep current anagram and do not reload (prevents anagram change)
       setLastError("Guess again, cowboy.")
-      setTimeout(() => setLastError(null), 2000)
+      setTimeout(() => setLastError(null), 2500)
     }
 
     setAnswer('')
@@ -549,12 +550,25 @@ function DailyGameClient() {
   }
 
   if (isWinner) {
-    return <VictoryScreen />
+    const victoryScreenData = data ? {
+      game: {
+        rounds: data.game.rounds.map((r: any) => ({
+          roundNumber: r.roundNumber,
+          startedAt: r.startedAt ? new Date(r.startedAt) : null,
+          endedAt: r.endedAt ? new Date(r.endedAt) : null,
+          words: r.words.map((w: any) => ({
+            solvedAt: w.solvedAt ? new Date(w.solvedAt) : null,
+          })),
+        })),
+      },
+    } : null
+    return <VictoryScreen gameResult={victoryScreenData} />
   }
 
   if (showInterim) {
     return (
       <div className="home-shell scanlines">
+        <ConfettiEffect duration={5000} />
         <main className="home-main flex flex-col !justify-center items-center">
           <div className="flex flex-col items-center">
             <div className="flex flex-col items-center gap-2">

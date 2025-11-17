@@ -540,7 +540,14 @@ export default function GameClient({ initialGameResult }: GameClientProps) {
 
   // Show winner screen (round 4 win)
   if (isWinner) {
-    return <VictoryScreen />
+    const victoryScreenData = gameResult ? {
+      roundResults: gameResult.roundResults,
+      game: {
+        anagrams: gameResult.game.anagrams,
+      },
+      submissionAttempts: gameResult.submissionAttempts,
+    } : null
+    return <VictoryScreen gameResult={victoryScreenData} />
   }
 
   // Show death screen (eliminated/timer ran out)
@@ -654,6 +661,7 @@ export default function GameClient({ initialGameResult }: GameClientProps) {
             isCorrect: false,
             message: data.message,
           })
+          setTimeout(() => setLastFeedback(null), 2500)
         }
 
         if (data.isCorrect) {
@@ -662,6 +670,7 @@ export default function GameClient({ initialGameResult }: GameClientProps) {
             isCorrect: true,
             message: "Fuckin' nailed it.",
           })
+          setTimeout(() => setLastFeedback(null), 2500)
           
           // Clear answer on correct submission
           setAnswer('')
@@ -759,6 +768,7 @@ export default function GameClient({ initialGameResult }: GameClientProps) {
           isCorrect: false,
           message: data.error || 'Failed to submit answer',
         })
+        setTimeout(() => setLastFeedback(null), 2500)
       }
     } catch (error) {
       console.error('Submission error:', error)
@@ -767,6 +777,7 @@ export default function GameClient({ initialGameResult }: GameClientProps) {
         isCorrect: false,
         message: 'Failed to submit. Please try again.',
       })
+      setTimeout(() => setLastFeedback(null), 2500)
     } finally {
       setIsSubmitting(false)
     }

@@ -58,7 +58,7 @@ export default function StatsOverlay({ isOpen, onClose }: StatsOverlayProps) {
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute w-6 h-6 flex items-center justify-center"
+          className="absolute w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-white/20 transition-colors"
           style={{ top: '16px', right: '16px' }}
           aria-label="Close"
         >
@@ -70,7 +70,26 @@ export default function StatsOverlay({ isOpen, onClose }: StatsOverlayProps) {
           <h2 className="text-body-large text-black text-center mb-8">Your stats</h2>
 
           {loading ? (
-            <div className="text-center text-black">Loading...</div>
+            <div className="flex flex-col gap-6">
+              {/* Top row skeleton - 4 large stats */}
+              <div className="grid grid-cols-4 gap-2 mb-6">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex flex-col items-center gap-2">
+                    <div className="w-12 h-12 bg-black/20 rounded animate-pulse" style={{ height: '48px' }}></div>
+                    <div className="w-20 h-5 bg-black/20 rounded animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+              {/* Bottom list skeleton */}
+              <div className="flex flex-col gap-0 pt-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex justify-between items-center py-2">
+                    <div className="w-32 h-5 bg-black/20 rounded animate-pulse"></div>
+                    <div className="w-16 h-5 bg-black/20 rounded animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : stats ? (
             <div className="flex flex-col gap-6">
               {/* Top row - 4 large stats */}
@@ -104,24 +123,24 @@ export default function StatsOverlay({ isOpen, onClose }: StatsOverlayProps) {
               {/* Bottom list */}
               <div className="flex flex-col gap-0 pt-4">
                 <div className="flex justify-between items-center py-2">
-                  <p className="text-info-small text-black">GLOBAL RANK</p>
-                  <p className="text-info-small text-black">{stats.globalRank || '—'}</p>
+                  <p className="text-info-medium text-black">GLOBAL RANK</p>
+                  <p className="text-info-medium text-black">{stats.globalRank || '—'}</p>
                 </div>
                 <div className="flex justify-between items-center py-2">
-                  <p className="text-info-small text-black">ROUNDS COMPLETED</p>
-                  <p className="text-info-small text-black">{stats.roundsCompleted}</p>
+                  <p className="text-info-medium text-black">ROUNDS COMPLETED</p>
+                  <p className="text-info-medium text-black">{stats.roundsCompleted}</p>
                 </div>
                 <div className="flex justify-between items-center py-2">
-                  <p className="text-info-small text-black">ANAGRAMS SOLVED</p>
-                  <p className="text-info-small text-black">{stats.anagramsSolved}</p>
+                  <p className="text-info-medium text-black">ANAGRAMS SOLVED</p>
+                  <p className="text-info-medium text-black">{stats.anagramsSolved}</p>
                 </div>
                 <div className="flex justify-between items-center py-2">
-                  <p className="text-info-small text-black">AVG WORD TIME</p>
-                  <p className="text-info-small text-black">{stats.avgWordTime}</p>
+                  <p className="text-info-medium text-black">AVG WORD TIME</p>
+                  <p className="text-info-medium text-black">{stats.avgWordTime}</p>
                 </div>
                 <div className="flex justify-between items-center py-2">
-                  <p className="text-info-small text-black">AVG ROUND TIME</p>
-                  <p className="text-info-small text-black">{stats.avgRoundTime}</p>
+                  <p className="text-info-medium text-black">AVG ROUND TIME</p>
+                  <p className="text-info-medium text-black">{stats.avgRoundTime}</p>
                 </div>
               </div>
             </div>

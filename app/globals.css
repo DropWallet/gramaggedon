@@ -159,7 +159,7 @@
 
 .stats-overlay {
   transform: translateY(100%);
-  transition: transform 0.3s ease-out;
+  transition: transform 200ms ease-in-out;
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -181,7 +181,7 @@
 
 /* Gramageddon theme tokens and components */
 :root {
-  --color-bg: #1e0420;
+  --color-bg: #220325;
   --color-accent-pink: #FF70D9;
   --color-accent-yellow: #FAE26E;
   --color-accent-yellow-light: #FFF4BD;
@@ -222,6 +222,11 @@
   --font-info-small-size: 12px;
   --font-info-small-weight: 700;
   --font-info-small-ls: -0.01em;
+
+  --font-info-medium-size: 18px;
+  --font-info-medium-weight: 700;
+  --font-info-medium-ls: -0.01em;
+  --font-info-medium-lh: 120%;
 }
 
 body { background: var(--color-bg); }
@@ -259,6 +264,7 @@ body { background: var(--color-bg); }
   line-height: 1;
   font-family: var(--font-inknut), serif;
   font-weight: 400;
+  letter-spacing: -0.05em;
 }
 .text-info-small {
   font-size: var(--font-info-small-size);
@@ -269,9 +275,10 @@ body { background: var(--color-bg); }
   font-family: var(--font-rubik), sans-serif;
 }
 .text-info-medium {
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: var(--font-info-medium-size);
+  font-weight: var(--font-info-medium-weight);
+  letter-spacing: var(--font-info-medium-ls);
+  line-height: var(--font-info-medium-lh);
   font-style: italic;
   text-align: center;
   font-family: var(--font-rubik), sans-serif;
