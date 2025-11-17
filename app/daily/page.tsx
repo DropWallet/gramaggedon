@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import AnswerInput from '@/components/game/AnswerInput'
 import SubmitButton from '@/components/game/SubmitButton'
 import DeathScreen from '@/components/game/DeathScreen'
@@ -31,6 +31,7 @@ function DailyGameClient() {
   const [interimSeconds, setInterimSeconds] = useState(5)
   const [upcomingRound, setUpcomingRound] = useState<number | null>(null)
   const [isWinner, setIsWinner] = useState(false)
+  const isLoadingRef = useRef(false)
 
   // Debug: Complete the round when pressing UP arrow key
   useEffect(() => {
@@ -188,36 +189,63 @@ function DailyGameClient() {
   }, [])
 
   async function start() {
-    const res = await fetch('/api/daily/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId }),
-    })
-    if (res.ok) {
-      const payload = await res.json()
-      setData(payload)
-      setLoading(false)
-      return true
+    if (isLoadingRef.current) return false
+    isLoadingRef.current = true
+    
+    try {
+      const res = await fetch('/api/daily/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      })
+      if (res.ok) {
+        const payload = await res.json()
+        setData(payload)
+        setLoading(false)
+        return true
+      }
+      return false
+    } finally {
+      isLoadingRef.current = false
     }
-    return false
   }
 
   async function load() {
-    const qs = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ''
-    const res = await fetch(`/api/daily/data${qs}`, { cache: 'no-store' })
-    if (res.ok) {
-      setData(await res.json())
-    } else {
-      setData(null)
+    if (isLoadingRef.current) return
+    isLoadingRef.current = true
+    
+    try {
+      const qs = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ''
+      const res = await fetch(`/api/daily/data${qs}`, { cache: 'no-store' })
+      if (res.ok) {
+        setData(await res.json())
+      } else {
+        setData(null)
+      }
+      setLoading(false)
+    } finally {
+      isLoadingRef.current = false
     }
-    setLoading(false)
   }
 
   useEffect(() => {
-    (async () => {
+    // Prevent multiple simultaneous calls
+    if (sessionId === undefined) return // Wait for sessionId to be set (null is valid)
+    if (isLoadingRef.current) return // Already loading
+    
+    let cancelled = false
+    
+    ;(async () => {
       const ok = await start()
-      if (!ok) await load()
+      if (cancelled) return
+      if (!ok) {
+        await load()
+      }
     })()
+    
+    return () => {
+      cancelled = true
+    }
   }, [sessionId])
 
   // Tick timer every 500ms
