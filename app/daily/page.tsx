@@ -249,7 +249,8 @@ function DailyGameClient() {
   }
 
   useEffect(() => {
-    // Prevent multiple simultaneous calls
+    // Always start a fresh game - no resuming existing games
+    // If user refreshes or leaves mid-game, they start fresh (which is fine for daily game)
     if (sessionId === undefined) return // Wait for sessionId to be set (null is valid)
     if (isLoadingRef.current) return // Already loading
     
@@ -257,11 +258,9 @@ function DailyGameClient() {
     let mounted = true
     
     ;(async () => {
-      const ok = await start()
+      // Always call start() to create a fresh game
+      await start()
       if (cancelled || !mounted) return
-      if (!ok) {
-        await load()
-      }
     })()
     
     return () => {
