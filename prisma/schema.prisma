@@ -1,0 +1,347 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime? // Required by PrismaAdapter for OAuth providers
+  name          String?   // Required by PrismaAdapter for OAuth providers (nullable)
+  image         String?   // Required by PrismaAdapter for OAuth providers (profile picture)
+  username      String?   @unique  // Nullable - generated for OAuth users in createUser event
+  passwordHash  String?   // Nullable for OAuth users (Google sign-in)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Basic game stats
+  currentStreak Int       @default(0)  // Consecutive wins
+  longestStreak Int       @default(0)  // Longest win streak
+  consecutiveDaysPlayed Int @default(0)  // Consecutive days with at least one game
+  longestConsecutiveDays Int @default(0)  // Longest consecutive days streak
+  lastPlayedDate DateTime?  // Last date user played (for consecutive days calculation)
+  totalGames    Int       @default(0)
+  totalWins     Int       @default(0)
+  averageRoundsCompleted Float @default(0)  // Average rounds completed per game
+  
+  // World ranking (cached, recalculated periodically)
+  worldRank     Int?
+  worldRankUpdatedAt DateTime?
+  
+  // Premium features
+  isPremium     Boolean   @default(false)
+  premiumUntil  DateTime?
+  
+  // Relationships
+  gameResults   GameResult[]
+  gameQueues    GameQueue[]
+  friendships   Friendship[] @relation("UserFriendships")
+  friendOf      Friendship[] @relation("FriendOf")
+  customizations UserCustomization?
+  friendComparisons FriendComparison[] @relation("UserComparisons")
+  comparedBy    FriendComparison[] @relation("FriendComparisons")
+  accounts      Account[]
+  sessions      Session[]
+  
+  @@map("users")
+}
+
+model UserCustomization {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatar    String?
+  theme     String   @default("default")
+  colorScheme String @default("green")
+  
+  @@map("user_customizations")
+}
+
+model Game {
+  id          String      @id @default(cuid())
+  gameType    GameType    @default(MORNING)
+  scheduledAt DateTime    // When game is scheduled to start
+  queueOpensAt DateTime   // When players can start joining queue (e.g., 15 min before)
+  startedAt   DateTime?
+  endedAt     DateTime?
+  status      GameStatus  @default(SCHEDULED)
+  currentRound Int        @default(1)
+  maxRounds   Int         @default(10)
+  
+  // Single-player daily mode support
+  roundTimeSeconds Int    @default(150)
+  
+  // Game configuration (Gradual config)
+  initialTimeSeconds Int  @default(60)
+  timeDecreasePerRound Int @default(5)
+  initialAnagramLength Int @default(5)  // Start at 5 letters
+  lengthIncreasePerRound Int @default(1)
+  
+  // The anagram for each round (same for all players)
+  anagrams    GameAnagram[]  // Store the anagram for each round
+  // Single-player daily mode: rounds with 4 words each
+  rounds      GameRound[]
+  
+  results     GameResult[]
+  queues      GameQueue[]
+  
+  @@map("games")
+}
+
+// Store the anagram shown to all players for each round
+model GameAnagram {
+  id          String   @id @default(cuid())
+  gameId      String
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  roundNumber Int
+  anagram     String   // The scrambled letters shown to players
+  solution    String   // The correct word
+  timeSeconds Int      // Time limit for this round
+  roundStartedAt DateTime?  // When this round actually started
+  roundEndedAt DateTime?    // When this round ended
+  
+  @@unique([gameId, roundNumber])
+  @@map("game_anagrams")
+}
+
+// Single-player daily mode: rounds container (each has 4 words)
+model GameRound {
+  id           String   @id @default(cuid())
+  gameId       String
+  game         Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  roundNumber  Int
+  timeSeconds  Int
+  startedAt    DateTime?
+  endedAt      DateTime?
+  words        RoundWord[]
+
+  @@unique([gameId, roundNumber])
+  @@map("game_rounds")
+}
+
+// Single-player daily mode: one of the four required words per round
+model RoundWord {
+  id           String   @id @default(cuid())
+  gameRoundId  String
+  round        GameRound @relation(fields: [gameRoundId], references: [id], onDelete: Cascade)
+  index        Int
+  anagram      String
+  solution     String
+  solvedAt     DateTime?
+  attempts     Int      @default(0)
+
+  @@unique([gameRoundId, index])
+  @@map("round_words")
+}
+
+model GameResult {
+  id            String   @id @default(cuid())
+  gameId        String
+  game          Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  
+  // Player identification (either userId OR sessionId, not both)
+  userId        String?  // Nullable for anonymous players
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId     String?  // Temporary session ID for anonymous players
+  isAnonymous   Boolean  @default(false)
+  canBeClaimed  Boolean  @default(true)  // Can be claimed by registering
+  expiresAt     DateTime?  // When to delete if not claimed (1 day for anonymous)
+  
+  // Performance
+  roundsCompleted Int    @default(0)
+  finalRound      Int?   // Last round they participated in
+  totalTime       Int?   // Total time taken across all rounds (milliseconds)
+  rank            Int?   // Final ranking in the game
+  isWinner        Boolean @default(false)
+  
+  // Single-player daily mode completion
+  completedAt     DateTime?
+  score           Int     @default(0)
+  
+  // Connection tracking (for reconnection window)
+  disconnectedAt  DateTime?  // When player disconnected
+  reconnectedAt   DateTime?  // When player reconnected
+  isDisconnected  Boolean @default(false)
+  
+  // Round-by-round data
+  roundResults    RoundResult[]
+  submissionAttempts SubmissionAttempt[]
+  
+  createdAt       DateTime @default(now())
+  
+  // Unique constraints: prevent same user/session from joining same game twice
+  @@unique([gameId, userId])
+  @@unique([gameId, sessionId])
+  @@map("game_results")
+  @@index([sessionId])  // For claiming results on registration
+  @@index([expiresAt])  // For cleanup job
+}
+
+// Tracks the final status of a player for each round
+model RoundResult {
+  id            String   @id @default(cuid())
+  gameResultId  String
+  gameResult    GameResult @relation(fields: [gameResultId], references: [id], onDelete: Cascade)
+  roundNumber   Int
+  isEliminated  Boolean  @default(false)  // Was eliminated this round
+  eliminatedAt  DateTime?  // When elimination was processed (end of round)
+  finalCorrectAnswer String?  // The correct answer they submitted (if any)
+  firstCorrectSubmissionAt DateTime?  // When they first submitted correct answer
+  totalAttempts Int     @default(0)  // Total number of attempts this round
+  correctAttempts Int   @default(0)  // Number of correct attempts
+  
+  @@unique([gameResultId, roundNumber])
+  @@map("round_results")
+}
+
+// Tracks every submission attempt (allows spam answers, max 1 per second)
+model SubmissionAttempt {
+  id            String   @id @default(cuid())
+  gameResultId  String
+  gameResult    GameResult @relation(fields: [gameResultId], references: [id], onDelete: Cascade)
+  roundNumber   Int
+  submittedAnswer String  // What they submitted
+  isCorrect     Boolean  @default(false)
+  submittedAt   DateTime @default(now())  // Precise timestamp (milliseconds for speed comparison)
+  timeSinceRoundStart Int  // Milliseconds since round started
+  
+  @@map("submission_attempts")
+  @@index([gameResultId, roundNumber])
+  @@index([roundNumber, submittedAt])  // For speed ranking
+  @@index([gameResultId, roundNumber, submittedAt])  // For rate limiting checks
+}
+
+// Pre-registration queue for games
+model GameQueue {
+  id        String   @id @default(cuid())
+  gameId    String?  // Nullable - null means in queue, set when game starts
+  game      Game?    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  
+  // Player identification (either userId OR sessionId, not both)
+  userId    String?  // Nullable for anonymous players
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String?  // Temporary session ID for anonymous players
+  
+  joinedAt  DateTime @default(now())
+  leftAt    DateTime?  // If they left queue before game started
+  
+  // Unique constraints: prevent same user/session from joining queue twice
+  // For queue entries (gameId is null), we need separate constraints
+  @@unique([userId, gameId])
+  @@unique([sessionId, gameId])
+  @@map("game_queues")
+  @@index([gameId, joinedAt])
+  @@index([sessionId])  // For anonymous player tracking
+  @@index([userId, gameId])  // For finding queue entries
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserFriendships", fields: [userId], references: [id], onDelete: Cascade)
+  friendId  String
+  friend    User     @relation("FriendOf", fields: [friendId], references: [id], onDelete: Cascade)
+  status    FriendshipStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, friendId])
+  @@map("friendships")
+}
+
+// Track friend comparisons (both same-game and historical)
+model FriendComparison {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation("UserComparisons", fields: [userId], references: [id], onDelete: Cascade)
+  friendId      String
+  friend        User     @relation("FriendComparisons", fields: [friendId], references: [id], onDelete: Cascade)
+  
+  // Same-game comparison (if both played same game)
+  // Store game IDs where both played - can look up GameResults separately
+  sharedGameIds String[] @default([])  // Array of game IDs where both played
+  
+  // Historical comparison stats (computed and cached)
+  headToHeadWins Int     @default(0)  // Times user beat friend in same game
+  headToHeadLosses Int   @default(0)  // Times friend beat user in same game
+  headToHeadTies Int     @default(0)  // Times both had same result
+  averageRoundsDifference Float?  // User's avg rounds - friend's avg rounds
+  winRateDifference Float?  // User's win rate - friend's win rate
+  
+  lastUpdated   DateTime @default(now())
+  
+  @@unique([userId, friendId])
+  @@map("friend_comparisons")
+  @@index([userId])
+  @@index([friendId])
+}
+
+enum GameType {
+  MORNING
+  EVENING
+}
+
+enum GameStatus {
+  SCHEDULED    // Game is scheduled, queue not open yet
+  QUEUE_OPEN   // Players can join the queue
+  WAITING      // Queue closed, waiting for start time
+  IN_PROGRESS  // Game is currently running
+  COMPLETED    // Game finished
+  CANCELLED    // Game was cancelled
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+  oauth_token_secret String? @db.Text
+  oauth_token        String? @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now())
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+

@@ -1,0 +1,13 @@
+{
+  "crons": [
+    {
+      "path": "/api/game/start",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/game/start",
+      "schedule": "0 17 * * *"
+    }
+  ]
+}
+
