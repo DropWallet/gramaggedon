@@ -290,7 +290,7 @@ body { background: var(--color-bg); }
 }
 .home-header {
   display: flex; justify-content: center; align-items: center;
-  padding: var(--pad-header); border-bottom: 1px solid var(--color-border-pink);
+  padding: var(--pad-header); border-bottom: 3px solid var(--color-border-pink);
   width: 100%; align-self: stretch; overflow: hidden; height: 88px;
 }
 .home-content {
@@ -304,7 +304,7 @@ body { background: var(--color-bg); }
 }
 .home-footer {
   display: flex; justify-content: center; align-items: center; gap: 8px;
-  padding: var(--pad-footer); border-top: 1px solid var(--color-border-pink);
+  padding: var(--pad-footer); border-top: 3px solid var(--color-border-pink);
   width: 100%; align-self: stretch;
 }
 

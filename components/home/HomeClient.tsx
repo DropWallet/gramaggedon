@@ -47,7 +47,7 @@ export default function HomeClient({ user }: HomeClientProps) {
                 <span className="text-body-medium">Play today&apos;s game</span>
               </Link>
 
-              <div className="flex flex-col gap-[20px]">
+              <div className={user ? "flex flex-col gap-[20px]" : "flex flex-row gap-[20px]"}>
                 {user ? (
                   <>
                     <button

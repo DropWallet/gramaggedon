@@ -42,6 +42,19 @@ export async function GET() {
                     roundEndedAt: true,
                   },
                 },
+                rounds: {
+                  select: {
+                    roundNumber: true,
+                    startedAt: true,
+                    endedAt: true,
+                    words: {
+                      select: {
+                        solvedAt: true,
+                        attempts: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -55,8 +68,14 @@ export async function GET() {
 
     // Calculate stats directly from gameResults (not from cached user fields)
     const completedGames = user.gameResults.filter((gr) => {
-      // A game is considered "played" if it has a game status of COMPLETED or if it has any round results
-      return gr.game?.status === 'COMPLETED' || gr.roundResults.length > 0
+      const isDailyGame = gr.game?.rounds && gr.game.rounds.length > 0
+      if (isDailyGame) {
+        // Daily game: check if any words were solved
+        return gr.game.rounds.some(r => r.words.some(w => w.solvedAt))
+      } else {
+        // Competitive game: check status or round results
+        return gr.game?.status === 'COMPLETED' || gr.roundResults.length > 0
+      }
     })
 
     const gameWins = completedGames.filter((gr) => gr.isWinner).length
@@ -73,31 +92,67 @@ export async function GET() {
     let roundTimeCount = 0
 
     user.gameResults.forEach((result) => {
-      // Count rounds with at least one correct answer
-      const completedRounds = result.roundResults.filter((rr) => rr.correctAttempts > 0)
-      totalRoundsCompleted += completedRounds.length
+      const isDailyGame = result.game?.rounds && result.game.rounds.length > 0
+      
+      if (isDailyGame) {
+        // Daily game: calculate from rounds and words
+        result.game.rounds.forEach((round) => {
+          const solvedWords = round.words.filter((w) => w.solvedAt !== null)
+          if (solvedWords.length > 0) {
+            totalRoundsCompleted++
+            totalAnagramsSolved += solvedWords.length
+            
+            if (round.startedAt) {
+              const roundStart = new Date(round.startedAt).getTime()
+              solvedWords.forEach((word) => {
+                if (word.solvedAt) {
+                  const solvedTime = new Date(word.solvedAt).getTime()
+                  const wordTimeSeconds = Math.floor((solvedTime - roundStart) / 1000)
+                  totalWordTime += wordTimeSeconds
+                  wordTimeCount++
+                }
+              })
+              
+              let roundEndTime: number
+              if (round.endedAt) {
+                roundEndTime = new Date(round.endedAt).getTime()
+              } else {
+                const lastSolved = solvedWords
+                  .map((w) => w.solvedAt ? new Date(w.solvedAt).getTime() : 0)
+                  .sort((a, b) => b - a)[0]
+                roundEndTime = lastSolved || new Date().getTime()
+              }
+              const roundTimeSeconds = Math.floor((roundEndTime - roundStart) / 1000)
+              totalRoundTime += roundTimeSeconds
+              roundTimeCount++
+            }
+          }
+        })
+      } else {
+        // Competitive game: use existing logic
+        const completedRounds = result.roundResults.filter((rr) => rr.correctAttempts > 0)
+        totalRoundsCompleted += completedRounds.length
+        totalAnagramsSolved += result.roundResults.reduce((sum, rr) => sum + rr.correctAttempts, 0)
 
-      // Count total anagrams solved (correct attempts across all rounds)
-      totalAnagramsSolved += result.roundResults.reduce((sum, rr) => sum + rr.correctAttempts, 0)
+        // Calculate word times from submission attempts
+        result.submissionAttempts.forEach((attempt) => {
+          const wordTimeSeconds = Math.floor(attempt.timeSinceRoundStart / 1000)
+          totalWordTime += wordTimeSeconds
+          wordTimeCount++
+        })
 
-      // Calculate word times from submission attempts
-      result.submissionAttempts.forEach((attempt) => {
-        const wordTimeSeconds = Math.floor(attempt.timeSinceRoundStart / 1000)
-        totalWordTime += wordTimeSeconds
-        wordTimeCount++
-      })
-
-      // Calculate round times
-      completedRounds.forEach((rr) => {
-        const anagram = result.game.anagrams.find((a) => a.roundNumber === rr.roundNumber)
-        if (anagram?.roundStartedAt && anagram?.roundEndedAt) {
-          const start = new Date(anagram.roundStartedAt).getTime()
-          const end = new Date(anagram.roundEndedAt).getTime()
-          const roundTimeSeconds = Math.floor((end - start) / 1000)
-          totalRoundTime += roundTimeSeconds
-          roundTimeCount++
-        }
-      })
+        // Calculate round times
+        completedRounds.forEach((rr) => {
+          const anagram = result.game?.anagrams?.find((a) => a.roundNumber === rr.roundNumber)
+          if (anagram?.roundStartedAt && anagram?.roundEndedAt) {
+            const start = new Date(anagram.roundStartedAt).getTime()
+            const end = new Date(anagram.roundEndedAt).getTime()
+            const roundTimeSeconds = Math.floor((end - start) / 1000)
+            totalRoundTime += roundTimeSeconds
+            roundTimeCount++
+          }
+        })
+      }
     })
 
     const avgWordTime = wordTimeCount > 0 ? Math.round(totalWordTime / wordTimeCount) : 0

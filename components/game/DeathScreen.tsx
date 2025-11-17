@@ -272,14 +272,12 @@ export default function DeathScreen({ correctWord, gameResult }: DeathScreenProp
               className={`flex justify-between items-center self-stretch flex-grow-0 flex-shrink-0 px-4 py-[7px] border-t ${index === 0 ? 'border-[color:var(--color-border-pink)]' : ''}`}
               style={{ borderColor: index === 0 ? 'var(--color-border-pink)' : 'rgba(255, 112, 217, 0.16)' }}
             >
-              <div className="flex justify-between items-center flex-grow-0 flex-shrink-0 w-[368px] relative mx-auto">
-                <p className="flex-grow-0 flex-shrink-0 text-sm font-bold italic text-center text-[color:var(--color-accent-pink)]">
-                  {stat.label}
-                </p>
-                <p className="flex-grow-0 flex-shrink-0 text-sm font-bold italic text-center text-[color:var(--color-accent-pink)]">
-                  {stat.value}
-                </p>
-              </div>
+              <p className="flex-grow-0 flex-shrink-0 text-sm font-bold italic text-center text-[color:var(--color-accent-pink)]">
+                {stat.label}
+              </p>
+              <p className="flex-grow-0 flex-shrink-0 text-sm font-bold italic text-center text-[color:var(--color-accent-pink)]">
+                {stat.value}
+              </p>
             </div>
           ))}
         </div>

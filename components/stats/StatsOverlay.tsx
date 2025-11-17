@@ -76,25 +76,25 @@ export default function StatsOverlay({ isOpen, onClose }: StatsOverlayProps) {
               {/* Top row - 4 large stats */}
               <div className="grid grid-cols-4 gap-2 mb-6">
                 <div className="flex flex-col items-center">
-                  <p className="text-[48px] font-bold italic text-black" style={{ fontFamily: 'var(--font-rubik), sans-serif' }}>
+                  <p className="text-[48px] font-bold italic text-black" style={{ fontFamily: 'var(--font-rubik), sans-serif', lineHeight: '100%' }}>
                     {stats.gameWins}
                   </p>
                   <p className="text-info-small text-black">GAME WINS</p>
                 </div>
                 <div className="flex flex-col items-center">
-                  <p className="text-[48px] font-bold italic text-black" style={{ fontFamily: 'var(--font-rubik), sans-serif' }}>
-                    {stats.winPercentage}%
+                  <p className="text-[48px] font-bold italic text-black" style={{ fontFamily: 'var(--font-rubik), sans-serif', lineHeight: '100%' }}>
+                    {stats.winPercentage}
                   </p>
                   <p className="text-info-small text-black">WIN %</p>
                 </div>
                 <div className="flex flex-col items-center">
-                  <p className="text-[48px] font-bold italic text-black" style={{ fontFamily: 'var(--font-rubik), sans-serif' }}>
+                  <p className="text-[48px] font-bold italic text-black" style={{ fontFamily: 'var(--font-rubik), sans-serif', lineHeight: '100%' }}>
                     {stats.gamesPlayed}
                   </p>
                   <p className="text-info-small text-black">GAMES PLAYED</p>
                 </div>
                 <div className="flex flex-col items-center">
-                  <p className="text-[48px] font-bold italic text-black" style={{ fontFamily: 'var(--font-rubik), sans-serif' }}>
+                  <p className="text-[48px] font-bold italic text-black" style={{ fontFamily: 'var(--font-rubik), sans-serif', lineHeight: '100%' }}>
                     {stats.dailyStreak}
                   </p>
                   <p className="text-info-small text-black">DAILY STREAK</p>
@@ -102,20 +102,20 @@ export default function StatsOverlay({ isOpen, onClose }: StatsOverlayProps) {
               </div>
 
               {/* Bottom list */}
-              <div className="flex flex-col gap-0 border-t border-black/20 pt-4">
-                <div className="flex justify-between items-center py-2 border-b border-black">
+              <div className="flex flex-col gap-0 pt-4">
+                <div className="flex justify-between items-center py-2">
                   <p className="text-info-small text-black">GLOBAL RANK</p>
                   <p className="text-info-small text-black">{stats.globalRank || '—'}</p>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-black/20">
+                <div className="flex justify-between items-center py-2">
                   <p className="text-info-small text-black">ROUNDS COMPLETED</p>
                   <p className="text-info-small text-black">{stats.roundsCompleted}</p>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-black/20">
+                <div className="flex justify-between items-center py-2">
                   <p className="text-info-small text-black">ANAGRAMS SOLVED</p>
                   <p className="text-info-small text-black">{stats.anagramsSolved}</p>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-black/20">
+                <div className="flex justify-between items-center py-2">
                   <p className="text-info-small text-black">AVG WORD TIME</p>
                   <p className="text-info-small text-black">{stats.avgWordTime}</p>
                 </div>

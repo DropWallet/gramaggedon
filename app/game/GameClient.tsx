@@ -830,7 +830,7 @@ export default function GameClient({ initialGameResult }: GameClientProps) {
         </div>
 
         {/* Game content */}
-        <div className="flex flex-col items-center justify-center gap-8 flex-1 self-stretch relative w-full max-w-[440px] mx-auto">
+        <div className="flex flex-col items-center justify-center max-md:justify-start gap-8 flex-1 self-stretch relative w-full max-w-[440px] mx-auto max-md:mt-[72px]">
           {/* Word count with checked dots */}
           <div className="game-word-count flex-grow-0 flex-shrink-0 relative">
             <p className="flex-grow-0 flex-shrink-0 text-info-small text-[color:var(--color-accent-pink)]">

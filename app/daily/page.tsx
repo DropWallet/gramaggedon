@@ -357,7 +357,7 @@ function DailyGameClient() {
   // Early returns
   if (loading) return (
     <div className="home-shell home-shell--tight scanlines">
-      <main className="home-main flex flex-col items-center justify-center">
+      <main className="home-main flex flex-col items-center !justify-center px-8">
         <span className="loader"></span>
       </main>
     </div>
@@ -471,7 +471,7 @@ function DailyGameClient() {
         </div>
 
         {/* Game content */}
-        <div className="flex flex-col items-center justify-center gap-8 flex-1 self-stretch relative w-full max-w-[440px] mx-auto">
+        <div className="flex flex-col items-center justify-center max-md:justify-start gap-8 flex-1 self-stretch relative w-full max-w-[440px] mx-auto max-md:mt-[72px]">
 
           {/* Word count with checked dots */}
           <div className="game-word-count flex-grow-0 flex-shrink-0 relative">

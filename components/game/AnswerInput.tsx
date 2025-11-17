@@ -86,8 +86,18 @@ export default function AnswerInput({ answer, setAnswer, maxLength, onSubmit }: 
     )
   })
   
-  // Update previous answer after render
+  // Haptic feedback when a letter is added
   useEffect(() => {
+    // Trigger haptic feedback when a letter is added (answer length increases)
+    const previousLength = previousAnswerRef.current.length
+    if (answer.length > previousLength) {
+      // Check if Vibration API is supported
+      if ('vibrate' in navigator) {
+        // Short vibration (10ms) for letter input
+        navigator.vibrate(10)
+      }
+    }
+    // Update previous answer after checking
     previousAnswerRef.current = answer
   }, [answer])
 
