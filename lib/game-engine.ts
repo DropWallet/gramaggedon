@@ -245,96 +245,9 @@ function spRoundLengths(round: number): number[] {
 }
 
 export async function ensureDailyGameForPlayer(userId?: string | null, sessionId?: string | null) {
-  const today = startOfDay(new Date())
-  const tomorrow = addDays(today, 1)
-
-  const allowMultiple = process.env.TEST_ALLOW_MULTIPLE === 'true' || process.env.NODE_ENV === 'development'
-
-  if (!allowMultiple) {
-    // Build OR condition properly - avoid undefined values in OR array
-    const orConditions = []
-    if (userId) {
-      orConditions.push({ userId })
-    }
-    if (sessionId) {
-      orConditions.push({ sessionId })
-    }
-    
-    if (orConditions.length === 0) {
-      // No userId or sessionId provided, will create new game below
-    } else {
-      const existing = await prisma.gameResult.findFirst({
-        where: {
-          OR: orConditions,
-          game: { 
-            startedAt: { gte: today, lt: tomorrow },
-            status: { not: 'COMPLETED' } // Only find games that aren't completed
-          },
-        },
-        include: { game: { include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } } },
-      })
-      
-      if (existing) {
-        const g = existing.game
-        
-        // Always reset to round 1 when starting a new game (called from /api/daily/start)
-        // This ensures users always start fresh when they click "Play today's game"
-        console.log(`Resetting game to round 1 for user ${userId || sessionId} (start endpoint called)`)
-        
-        // Reset game to round 1
-        await prisma.game.update({ 
-          where: { id: g.id }, 
-          data: { 
-            currentRound: 1,
-            status: 'IN_PROGRESS' // Ensure status is IN_PROGRESS
-          } 
-        })
-        
-        // Reset all rounds - clear solved words, reset timers, AND regenerate words
-        for (const round of g.rounds || []) {
-          // Regenerate words for this round to ensure fresh game
-          const lengths = spRoundLengths(round.roundNumber)
-          const roundWords = await prisma.roundWord.findMany({
-            where: { gameRoundId: round.id },
-            orderBy: { index: 'asc' }
-          })
-          
-          // Regenerate each word with new anagram and solution
-          for (let i = 0; i < roundWords.length; i++) {
-            const len = lengths[i] || lengths[0]
-            const solution = getRandomWord(len)
-            const anagram = solution.split('').sort(() => Math.random() - 0.5).join('')
-            
-            await prisma.roundWord.update({
-              where: { id: roundWords[i].id },
-              data: {
-                anagram,
-                solution,
-                solvedAt: null,
-                attempts: 0
-              }
-            })
-          }
-          
-          await prisma.gameRound.update({
-            where: { id: round.id },
-            data: { 
-              startedAt: round.roundNumber === 1 ? new Date() : null, 
-              endedAt: null 
-            }
-          })
-        }
-        
-        const refreshed = await prisma.game.findUnique({ 
-          where: { id: g.id }, 
-          include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } 
-        })
-        return { game: refreshed!, result: existing }
-      }
-    }
-  }
-
-  // Create a fresh game (used for first play or when multiple per day is allowed for testing)
+  // Always create a fresh game - no checking for existing games
+  // If user refreshes or leaves mid-game, they start fresh (which is fine for daily game)
+  // This eliminates all the complexity and bugs from trying to reset existing games
   const game = await prisma.game.create({
     data: {
       startedAt: new Date(),
@@ -384,6 +297,8 @@ export async function ensureDailyGameForPlayer(userId?: string | null, sessionId
 }
 
 export async function getActiveDailyGame(userId?: string | null, sessionId?: string | null) {
+  // Simplified: just return the most recent active game for today, or null if none exists
+  // No reset logic - if game is in invalid state, client should call /api/daily/start to create fresh game
   const today = startOfDay(new Date())
   const tomorrow = addDays(today, 1)
   
@@ -400,62 +315,17 @@ export async function getActiveDailyGame(userId?: string | null, sessionId?: str
     return null
   }
   
-  const result = await prisma.gameResult.findFirst({
+  return prisma.gameResult.findFirst({
     where: {
       OR: orConditions,
       game: { 
         startedAt: { gte: today, lt: tomorrow }, 
-        status: { not: 'COMPLETED' } // Include IN_PROGRESS games
+        status: { not: 'COMPLETED' }
       },
     },
     orderBy: { game: { startedAt: 'desc' } },
     include: { game: { include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } } },
   })
-  
-  // If game exists but is in invalid state (round 2+ without completing round 1), reset it
-  if (result) {
-    const g = result.game
-    const round1 = g.rounds?.find(r => r.roundNumber === 1)
-    const round1Complete = round1?.words.every(w => w.solvedAt) || false
-    
-    // If we're past round 1 but round 1 wasn't completed, reset to round 1
-    if (g.currentRound > 1 && !round1Complete) {
-      console.log(`Game in invalid state (round ${g.currentRound} but round 1 not complete) - resetting to round 1 for user ${userId || sessionId}`)
-      
-      // Reset game to round 1
-      await prisma.game.update({ 
-        where: { id: g.id }, 
-        data: { 
-          currentRound: 1,
-          status: 'IN_PROGRESS'
-        } 
-      })
-      
-      // Reset all rounds - clear solved words and reset timers
-      for (const round of g.rounds || []) {
-        await prisma.roundWord.updateMany({
-          where: { gameRoundId: round.id },
-          data: { solvedAt: null, attempts: 0 }
-        })
-        await prisma.gameRound.update({
-          where: { id: round.id },
-          data: { 
-            startedAt: round.roundNumber === 1 ? new Date() : null, 
-            endedAt: null 
-          }
-        })
-      }
-      
-      // Fetch and return the refreshed game
-      const refreshed = await prisma.gameResult.findFirst({
-        where: { id: result.id },
-        include: { game: { include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } } },
-      })
-      return refreshed
-    }
-  }
-  
-  return result
 }
 
 export async function submitDailyAnswer(opts: { gameId: string; roundNumber: number; guess: string }) {
