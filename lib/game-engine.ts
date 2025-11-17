@@ -392,13 +392,18 @@ export async function getActiveDailyGame(userId?: string | null, sessionId?: str
 
 export async function submitDailyAnswer(opts: { gameId: string; roundNumber: number; guess: string }) {
   const { gameId, roundNumber, guess } = opts
+  // First fetch the game to get the actual currentRound from the database
   const game = await prisma.game.findUnique({
     where: { id: gameId },
-    include: { rounds: { where: { roundNumber }, include: { words: true } } },
+    include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } },
   })
   if (!game) throw new Error('Game not found')
-  const round = game.rounds[0]
-  if (!round) throw new Error('Round not found')
+  
+  // Use the database's currentRound, not the client-provided roundNumber
+  // This prevents issues where client has stale data
+  const actualRoundNumber = game.currentRound
+  const round = game.rounds.find(r => r.roundNumber === actualRoundNumber)
+  if (!round) throw new Error(`Round ${actualRoundNumber} not found`)
 
   const currentWord = round.words.find(w => !w.solvedAt)
   if (!currentWord) return { isCorrect: false, message: 'Round already complete' }
@@ -414,7 +419,8 @@ export async function submitDailyAnswer(opts: { gameId: string; roundNumber: num
   if (!isCorrect) {
     console.warn('Answer mismatch:', {
       gameId,
-      roundNumber,
+      roundNumber: actualRoundNumber,
+      clientProvidedRoundNumber: roundNumber,
       wordIndex: currentWord.index,
       anagram: currentWord.anagram,
       solution: currentWord.solution,
@@ -436,11 +442,12 @@ export async function submitDailyAnswer(opts: { gameId: string; roundNumber: num
   const newRoundsCompleted = (result?.roundsCompleted || 0) + 1
   await prisma.gameResult.update({ where: { id: result!.id }, data: { roundsCompleted: newRoundsCompleted } })
 
-  if (roundNumber < game.maxRounds) {
-    await prisma.game.update({ where: { id: gameId }, data: { currentRound: roundNumber + 1 } })
+  if (actualRoundNumber < game.maxRounds) {
+    const nextRound = actualRoundNumber + 1
+    await prisma.game.update({ where: { id: gameId }, data: { currentRound: nextRound } })
     // Do not auto-start next round; client will trigger after interim
-    // await prisma.gameRound.updateMany({ where: { gameId, roundNumber: roundNumber + 1 }, data: { startedAt: new Date() } })
-    return { isCorrect: true, roundComplete: true, nextRound: roundNumber + 1 }
+    // await prisma.gameRound.updateMany({ where: { gameId, roundNumber: nextRound }, data: { startedAt: new Date() } })
+    return { isCorrect: true, roundComplete: true, nextRound }
   }
 
   await prisma.game.update({ where: { id: gameId }, data: { status: 'COMPLETED', endedAt: new Date() } })
