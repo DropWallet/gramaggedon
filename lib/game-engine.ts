@@ -248,6 +248,9 @@ export async function ensureDailyGameForPlayer(userId?: string | null, sessionId
   // Always create a fresh game - no checking for existing games
   // If user refreshes or leaves mid-game, they start fresh (which is fine for daily game)
   // This eliminates all the complexity and bugs from trying to reset existing games
+  
+  // Use nested creates to do everything in a single transaction (much faster!)
+  // This reduces 23 sequential queries to just 1-2 queries
   const game = await prisma.game.create({
     data: {
       startedAt: new Date(),
@@ -258,42 +261,49 @@ export async function ensureDailyGameForPlayer(userId?: string | null, sessionId
       gameType: 'MORNING',
       scheduledAt: new Date(),
       queueOpensAt: new Date(),
-    },
-  })
-
-  for (let r = 1; r <= 4; r++) {
-    const round = await prisma.gameRound.create({
-      data: {
-        gameId: game.id,
-        roundNumber: r,
-        timeSeconds: 120,
-        startedAt: r === 1 ? new Date() : null,
+      rounds: {
+        create: Array.from({ length: 4 }, (_, r) => {
+          const roundNumber = r + 1
+          const lengths = spRoundLengths(roundNumber)
+          return {
+            roundNumber,
+            timeSeconds: 120,
+            startedAt: roundNumber === 1 ? new Date() : null,
+            words: {
+              create: Array.from({ length: 4 }, (_, i) => {
+                const len = lengths[i]
+                const solution = getRandomWord(len)
+                const anagram = solution.split('').sort(() => Math.random() - 0.5).join('')
+                return {
+                  index: i + 1,
+                  anagram,
+                  solution,
+                }
+              })
+            }
+          }
+        })
       },
-    })
-    const lengths = spRoundLengths(r)
-    for (let i = 0; i < 4; i++) {
-      const len = lengths[i]
-      const solution = getRandomWord(len)
-      const anagram = solution.split('').sort(() => Math.random() - 0.5).join('')
-      await prisma.roundWord.create({
-        data: { gameRoundId: round.id, index: i + 1, anagram, solution },
-      })
-    }
-  }
-
-  const result = await prisma.gameResult.create({
-    data: {
-      gameId: game.id,
-      userId: userId || undefined,
-      sessionId: userId ? undefined : sessionId || undefined,
+      results: {
+        create: {
+          userId: userId || undefined,
+          sessionId: userId ? undefined : sessionId || undefined,
+        }
+      }
     },
+    include: {
+      rounds: {
+        include: { words: true },
+        orderBy: { roundNumber: 'asc' }
+      },
+      results: true
+    }
   })
-
-  const fullGame = await prisma.game.findUnique({
-    where: { id: game.id },
-    include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } },
-  })
-  return { game: fullGame!, result }
+  
+  // Extract the result from the created game
+  const result = game.results[0]
+  
+  return { game, result }
 }
 
 export async function getActiveDailyGame(userId?: string | null, sessionId?: string | null) {
@@ -330,18 +340,37 @@ export async function getActiveDailyGame(userId?: string | null, sessionId?: str
 
 export async function submitDailyAnswer(opts: { gameId: string; roundNumber: number; guess: string }) {
   const { gameId, roundNumber, guess } = opts
-  // First fetch the game to get the actual currentRound from the database
-  const game = await prisma.game.findUnique({
-    where: { id: gameId },
-    include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } },
-  })
-  if (!game) throw new Error('Game not found')
   
-  // Use the database's currentRound, not the client-provided roundNumber
-  // This prevents issues where client has stale data
-  const actualRoundNumber = game.currentRound
-  const round = game.rounds.find(r => r.roundNumber === actualRoundNumber)
-  if (!round) throw new Error(`Round ${actualRoundNumber} not found`)
+  // OPTIMIZATION: Fetch only currentRound and gameResult in parallel (not all rounds)
+  const [game, gameResult] = await Promise.all([
+    prisma.game.findUnique({
+      where: { id: gameId },
+      select: { id: true, currentRound: true, maxRounds: true },
+    }),
+    prisma.gameResult.findFirst({ 
+      where: { gameId },
+      select: { id: true, roundsCompleted: true }
+    })
+  ])
+  
+  if (!game) throw new Error('Game not found')
+  if (!gameResult) throw new Error('GameResult not found')
+  
+  // OPTIMIZATION: Only fetch the current round (not all 4 rounds)
+  const round = await prisma.gameRound.findFirst({
+    where: { 
+      gameId, 
+      roundNumber: game.currentRound 
+    },
+    include: {
+      words: {
+        select: { id: true, index: true, anagram: true, solution: true, solvedAt: true, attempts: true },
+        orderBy: { index: 'asc' }
+      }
+    }
+  })
+  
+  if (!round) throw new Error(`Round ${game.currentRound} not found`)
 
   const currentWord = round.words.find(w => !w.solvedAt)
   if (!currentWord) return { isCorrect: false, message: 'Round already complete' }
@@ -357,7 +386,7 @@ export async function submitDailyAnswer(opts: { gameId: string; roundNumber: num
   if (!isCorrect) {
     console.warn('Answer mismatch:', {
       gameId,
-      roundNumber: actualRoundNumber,
+      roundNumber: game.currentRound,
       clientProvidedRoundNumber: roundNumber,
       wordIndex: currentWord.index,
       anagram: currentWord.anagram,
@@ -369,28 +398,57 @@ export async function submitDailyAnswer(opts: { gameId: string; roundNumber: num
   
   if (!isCorrect) return { isCorrect: false, message: 'Nope! Try again.' }
 
-  await prisma.roundWord.update({ where: { id: currentWord.id }, data: { solvedAt: new Date() } })
+  // OPTIMIZATION: Use transaction to batch updates and check round completion efficiently
+  const result = await prisma.$transaction(async (tx) => {
+    // Update word as solved
+    await tx.roundWord.update({ 
+      where: { id: currentWord.id }, 
+      data: { solvedAt: new Date() } 
+    })
 
-  const updated = await prisma.roundWord.findMany({ where: { gameRoundId: round.id } })
-  const roundComplete = updated.every(w => w.solvedAt)
+    // OPTIMIZATION: Check round completion using data we already have (no extra query)
+    const allWordsSolved = round.words.every(w => 
+      w.id === currentWord.id ? true : w.solvedAt !== null
+    )
 
-  if (!roundComplete) return { isCorrect: true, roundComplete: false, solvedWord: currentWord.solution }
+    if (!allWordsSolved) {
+      return { isCorrect: true, roundComplete: false, solvedWord: currentWord.solution }
+    }
 
-  const result = await prisma.gameResult.findFirst({ where: { gameId } })
-  const newRoundsCompleted = (result?.roundsCompleted || 0) + 1
-  await prisma.gameResult.update({ where: { id: result!.id }, data: { roundsCompleted: newRoundsCompleted } })
+    // Round complete - batch updates in transaction
+    const newRoundsCompleted = (gameResult.roundsCompleted || 0) + 1
 
-  if (actualRoundNumber < game.maxRounds) {
-    const nextRound = actualRoundNumber + 1
-    await prisma.game.update({ where: { id: gameId }, data: { currentRound: nextRound } })
-    // Do not auto-start next round; client will trigger after interim
-    // await prisma.gameRound.updateMany({ where: { gameId, roundNumber: nextRound }, data: { startedAt: new Date() } })
-    return { isCorrect: true, roundComplete: true, nextRound }
-  }
+    if (game.currentRound < game.maxRounds) {
+      const nextRound = game.currentRound + 1
+      // Update both in parallel within transaction
+      await Promise.all([
+        tx.gameResult.update({ 
+          where: { id: gameResult.id }, 
+          data: { roundsCompleted: newRoundsCompleted } 
+        }),
+        tx.game.update({ 
+          where: { id: gameId }, 
+          data: { currentRound: nextRound } 
+        })
+      ])
+      return { isCorrect: true, roundComplete: true, nextRound }
+    }
 
-  await prisma.game.update({ where: { id: gameId }, data: { status: 'COMPLETED', endedAt: new Date() } })
-  await prisma.gameResult.update({ where: { id: result!.id }, data: { completedAt: new Date() } })
-  return { isCorrect: true, roundComplete: true, isGameComplete: true }
+    // Game complete - batch updates in transaction
+    await Promise.all([
+      tx.gameResult.update({ 
+        where: { id: gameResult.id }, 
+        data: { roundsCompleted: newRoundsCompleted, completedAt: new Date() } 
+      }),
+      tx.game.update({ 
+        where: { id: gameId }, 
+        data: { status: 'COMPLETED', endedAt: new Date() } 
+      })
+    ])
+    return { isCorrect: true, roundComplete: true, isGameComplete: true }
+  })
+
+  return result
 }
 
 export async function startCurrentRoundNow(gameId: string) {

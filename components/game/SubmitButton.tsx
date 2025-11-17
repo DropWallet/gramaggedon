@@ -21,9 +21,19 @@ export default function SubmitButton({ onClick, disabled, isLoading, fullWidth =
       className={`btn-primary btn-primary--small disabled:opacity-60 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : ''}`}
       style={style}
     >
-      <span className="text-body-small">
-        {isLoading ? 'Submitting...' : 'Submit'}
-      </span>
+      {isLoading ? (
+        <div className="flex items-center justify-center" style={{ height: '1.4em' }}>
+          <div 
+            className="w-4 h-4 rounded-full animate-spin" 
+            style={{ 
+              border: '2px solid var(--color-bg)',
+              borderTopColor: 'transparent'
+            }}
+          ></div>
+        </div>
+      ) : (
+        <span className="text-body-small">Submit</span>
+      )}
     </button>
   )
 }

@@ -215,7 +215,7 @@ export default function RegisterPage() {
                 </button>
               </form>
 
-              <YellowLink href="/login" className="mt-2">
+              <YellowLink href="/login" className="mt-2 text-body-small">
                 Log in instead
               </YellowLink>
             </div>

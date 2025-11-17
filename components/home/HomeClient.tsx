@@ -38,7 +38,7 @@ export default function HomeClient({ user }: HomeClientProps) {
               <span className="text-body-large text-[color:var(--color-accent-pink)]">
                 Solve 16 anagrams in 8 minutes.
                 <br />
-                <span className="text-[color:var(--color-accent-yellow)]">Or die.</span>
+                <span className="text-[color:var(--color-accent-yellow)] mt-1 inline-block">Or die.</span>
               </span>
             </div>
 

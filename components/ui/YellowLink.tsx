@@ -11,7 +11,9 @@ interface YellowLinkProps {
 }
 
 export default function YellowLink({ href, onClick, children, className = '' }: YellowLinkProps) {
-  const baseClasses = 'yellow-link text-body-medium text-[color:var(--color-accent-yellow)]'
+  // Only apply text-body-medium if text-body-small is not already specified
+  const textSizeClass = className.includes('text-body-small') ? '' : 'text-body-medium'
+  const baseClasses = `yellow-link ${textSizeClass} text-[color:var(--color-accent-yellow)]`
   const combinedClasses = `${baseClasses} ${className}`
 
   if (href) {

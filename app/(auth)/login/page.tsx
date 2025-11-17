@@ -176,7 +176,7 @@ function LoginForm() {
                 </button>
               </form>
 
-              <YellowLink href="/register" className="mt-2">
+              <YellowLink href="/register" className="mt-2 text-body-small">
                 Create new account
               </YellowLink>
             </div>
