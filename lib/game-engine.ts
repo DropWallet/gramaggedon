@@ -251,29 +251,43 @@ export async function ensureDailyGameForPlayer(userId?: string | null, sessionId
   const allowMultiple = process.env.TEST_ALLOW_MULTIPLE === 'true' || process.env.NODE_ENV === 'development'
 
   if (!allowMultiple) {
-    const existing = await prisma.gameResult.findFirst({
-      where: {
-        OR: [{ userId: userId || undefined }, { sessionId: sessionId || undefined }],
-        game: { startedAt: { gte: today, lt: tomorrow } },
-      },
-      include: { game: { include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } } },
-    })
-    if (existing) {
-      const g = existing.game
-      // Find current round (fallback to first)
-      const current = g.rounds?.find(r => r.roundNumber === g.currentRound) || g.rounds?.[0]
-      if (current) {
-        const anySolved = current.words.some(w => !!w.solvedAt)
-        const startMs = current.startedAt ? new Date(current.startedAt).getTime() : 0
-        const durationMs = (current.timeSeconds || g.roundTimeSeconds || 120) * 1000
-        const expired = startMs > 0 ? Date.now() >= startMs + durationMs : false
-        // If no progress OR timer expired, refresh start time to give a full timer
-        if (!anySolved || expired || !current.startedAt) {
-          await prisma.gameRound.update({ where: { id: current.id }, data: { startedAt: new Date(), endedAt: null } })
+    // Build OR condition properly - avoid undefined values in OR array
+    const orConditions = []
+    if (userId) {
+      orConditions.push({ userId })
+    }
+    if (sessionId) {
+      orConditions.push({ sessionId })
+    }
+    
+    if (orConditions.length === 0) {
+      // No userId or sessionId provided, will create new game below
+    } else {
+      const existing = await prisma.gameResult.findFirst({
+        where: {
+          OR: orConditions,
+          game: { startedAt: { gte: today, lt: tomorrow } },
+        },
+        include: { game: { include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } } },
+      })
+      
+      if (existing) {
+        const g = existing.game
+        // Find current round (fallback to first)
+        const current = g.rounds?.find(r => r.roundNumber === g.currentRound) || g.rounds?.[0]
+        if (current) {
+          const anySolved = current.words.some(w => !!w.solvedAt)
+          const startMs = current.startedAt ? new Date(current.startedAt).getTime() : 0
+          const durationMs = (current.timeSeconds || g.roundTimeSeconds || 120) * 1000
+          const expired = startMs > 0 ? Date.now() >= startMs + durationMs : false
+          // If no progress OR timer expired, refresh start time to give a full timer
+          if (!anySolved || expired || !current.startedAt) {
+            await prisma.gameRound.update({ where: { id: current.id }, data: { startedAt: new Date(), endedAt: null } })
+          }
         }
+        const refreshed = await prisma.game.findUnique({ where: { id: g.id }, include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } })
+        return { game: refreshed!, result: existing }
       }
-      const refreshed = await prisma.game.findUnique({ where: { id: g.id }, include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } })
-      return { game: refreshed!, result: existing }
     }
   }
 
@@ -329,9 +343,23 @@ export async function ensureDailyGameForPlayer(userId?: string | null, sessionId
 export async function getActiveDailyGame(userId?: string | null, sessionId?: string | null) {
   const today = startOfDay(new Date())
   const tomorrow = addDays(today, 1)
+  
+  // Build OR condition properly - avoid undefined values in OR array
+  const orConditions = []
+  if (userId) {
+    orConditions.push({ userId })
+  }
+  if (sessionId) {
+    orConditions.push({ sessionId })
+  }
+  
+  if (orConditions.length === 0) {
+    return null
+  }
+  
   return prisma.gameResult.findFirst({
     where: {
-      OR: [{ userId: userId || undefined }, { sessionId: sessionId || undefined }],
+      OR: orConditions,
       game: { startedAt: { gte: today, lt: tomorrow }, status: 'IN_PROGRESS' },
     },
     orderBy: { game: { startedAt: 'desc' } },
