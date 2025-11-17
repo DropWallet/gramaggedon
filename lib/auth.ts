@@ -93,6 +93,96 @@ export const authOptions: NextAuthOptions = {
         if (!user.email) {
           return false
         }
+
+        // Check if a user with this email already exists (from email/password signup)
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email.toLowerCase() },
+          include: { accounts: true },
+        })
+
+        if (existingUser) {
+          // Check if Google account is already linked
+          const existingGoogleAccount = existingUser.accounts.find(
+            (acc) => acc.provider === 'google' && acc.providerAccountId === account.providerAccountId
+          )
+
+          if (!existingGoogleAccount && account) {
+            // Link Google account to existing user
+            try {
+              // Check if account with this providerAccountId already exists (might be orphaned)
+              const orphanedAccount = await prisma.account.findUnique({
+                where: {
+                  provider_providerAccountId: {
+                    provider: account.provider,
+                    providerAccountId: account.providerAccountId,
+                  },
+                },
+              })
+
+              if (orphanedAccount) {
+                // Update orphaned account to link to existing user
+                await prisma.account.update({
+                  where: {
+                    provider_providerAccountId: {
+                      provider: account.provider,
+                      providerAccountId: account.providerAccountId,
+                    },
+                  },
+                  data: {
+                    userId: existingUser.id,
+                    refresh_token: account.refresh_token,
+                    access_token: account.access_token,
+                    expires_at: account.expires_at,
+                    token_type: account.token_type,
+                    scope: account.scope,
+                    id_token: account.id_token,
+                    session_state: account.session_state,
+                  },
+                })
+              } else {
+                // Create new account linked to existing user
+                await prisma.account.create({
+                  data: {
+                    userId: existingUser.id,
+                    type: account.type,
+                    provider: account.provider,
+                    providerAccountId: account.providerAccountId,
+                    refresh_token: account.refresh_token,
+                    access_token: account.access_token,
+                    expires_at: account.expires_at,
+                    token_type: account.token_type,
+                    scope: account.scope,
+                    id_token: account.id_token,
+                    session_state: account.session_state,
+                  },
+                })
+              }
+              // Update the user ID in the callback to use the existing user
+              // This tells the adapter to use the existing user instead of creating a new one
+              user.id = existingUser.id
+            } catch (error) {
+              console.error('Error linking Google account:', error)
+              // If linking fails due to unique constraint, account might already be linked
+              // Try to find the account and use that user
+              const linkedAccount = await prisma.account.findUnique({
+                where: {
+                  provider_providerAccountId: {
+                    provider: account.provider,
+                    providerAccountId: account.providerAccountId,
+                  },
+                },
+              })
+              if (linkedAccount) {
+                user.id = linkedAccount.userId
+              }
+            }
+          } else if (existingGoogleAccount) {
+            // Google account already linked, use existing user
+            user.id = existingUser.id
+          }
+        }
+
+        // Handle username generation for new or existing users
         const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
         if (dbUser && !dbUser.username) {
           const profileAny = profile as any
