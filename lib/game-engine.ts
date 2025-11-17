@@ -266,43 +266,81 @@ export async function ensureDailyGameForPlayer(userId?: string | null, sessionId
       const existing = await prisma.gameResult.findFirst({
         where: {
           OR: orConditions,
-          game: { startedAt: { gte: today, lt: tomorrow } },
+          game: { 
+            startedAt: { gte: today, lt: tomorrow },
+            status: { not: 'COMPLETED' } // Only find games that aren't completed
+          },
         },
         include: { game: { include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } } },
       })
       
       if (existing) {
         const g = existing.game
-        // Find current round (fallback to first)
-        const current = g.rounds?.find(r => r.roundNumber === g.currentRound) || g.rounds?.[0]
-        if (current) {
-          const anySolved = current.words.some(w => !!w.solvedAt)
-          const startMs = current.startedAt ? new Date(current.startedAt).getTime() : 0
-          const durationMs = (current.timeSeconds || g.roundTimeSeconds || 120) * 1000
-          const expired = startMs > 0 ? Date.now() >= startMs + durationMs : false
+        
+        // Check if game is in an invalid state (round 2+ without completing round 1)
+        const round1 = g.rounds?.find(r => r.roundNumber === 1)
+        const round1Complete = round1?.words.every(w => w.solvedAt) || false
+        
+        // If we're past round 1 but round 1 wasn't completed, reset to round 1
+        if (g.currentRound > 1 && !round1Complete) {
+          console.log(`Game in invalid state (round ${g.currentRound} but round 1 not complete) - resetting to round 1 for user ${userId || sessionId}`)
           
-          // If timer expired or no progress, reset the round completely
-          if (expired || (!anySolved && !current.startedAt)) {
-            // Reset all solved words in the current round
+          // Reset game to round 1
+          await prisma.game.update({ 
+            where: { id: g.id }, 
+            data: { currentRound: 1 } 
+          })
+          
+          // Reset all rounds - clear solved words and reset timers
+          for (const round of g.rounds || []) {
             await prisma.roundWord.updateMany({
-              where: { gameRoundId: current.id },
+              where: { gameRoundId: round.id },
               data: { solvedAt: null, attempts: 0 }
             })
-            // Reset round start time
-            await prisma.gameRound.update({ 
-              where: { id: current.id }, 
-              data: { startedAt: new Date(), endedAt: null } 
-            })
-            console.log(`Reset round ${current.roundNumber} for user ${userId || sessionId} - timer expired or no progress`)
-          } else if (!anySolved && current.startedAt) {
-            // Just refresh start time if no progress but timer hasn't expired
-            await prisma.gameRound.update({ 
-              where: { id: current.id }, 
-              data: { startedAt: new Date(), endedAt: null } 
+            await prisma.gameRound.update({
+              where: { id: round.id },
+              data: { 
+                startedAt: round.roundNumber === 1 ? new Date() : null, 
+                endedAt: null 
+              }
             })
           }
+        } else {
+          // Normal resume logic - find current round and reset if needed
+          const current = g.rounds?.find(r => r.roundNumber === g.currentRound) || g.rounds?.[0]
+          if (current) {
+            const anySolved = current.words.some(w => !!w.solvedAt)
+            const startMs = current.startedAt ? new Date(current.startedAt).getTime() : 0
+            const durationMs = (current.timeSeconds || g.roundTimeSeconds || 120) * 1000
+            const expired = startMs > 0 ? Date.now() >= startMs + durationMs : false
+            
+            // If timer expired or no progress, reset the round completely
+            if (expired || (!anySolved && !current.startedAt)) {
+              // Reset all solved words in the current round
+              await prisma.roundWord.updateMany({
+                where: { gameRoundId: current.id },
+                data: { solvedAt: null, attempts: 0 }
+              })
+              // Reset round start time
+              await prisma.gameRound.update({ 
+                where: { id: current.id }, 
+                data: { startedAt: new Date(), endedAt: null } 
+              })
+              console.log(`Reset round ${current.roundNumber} for user ${userId || sessionId} - timer expired or no progress`)
+            } else if (!anySolved && current.startedAt) {
+              // Just refresh start time if no progress but timer hasn't expired
+              await prisma.gameRound.update({ 
+                where: { id: current.id }, 
+                data: { startedAt: new Date(), endedAt: null } 
+              })
+            }
+          }
         }
-        const refreshed = await prisma.game.findUnique({ where: { id: g.id }, include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } })
+        
+        const refreshed = await prisma.game.findUnique({ 
+          where: { id: g.id }, 
+          include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } 
+        })
         return { game: refreshed!, result: existing }
       }
     }
