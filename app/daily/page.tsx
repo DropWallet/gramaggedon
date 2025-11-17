@@ -36,6 +36,7 @@ function DailyGameClient() {
   const [inputWidth, setInputWidth] = useState<number>(220) // Will be updated by AnswerInput
   const nextRoundDataRef = useRef<any>(null) // Preloaded data for next round (using ref to avoid closure issues)
   const pendingReloadRef = useRef<ReturnType<typeof setTimeout> | null>(null) // Track pending reloads to prevent multiple concurrent reloads
+  const lastSuccessfulSubmissionRef = useRef<number>(0) // Track last successful submission time to prevent false death triggers
 
   // Debug: Complete the round when pressing UP arrow key
   useEffect(() => {
@@ -328,6 +329,13 @@ function DailyGameClient() {
     if (!data) return // Don't check if data is loading
     if (loading) return // Don't check while loading data
     if (isDead) return // Already dead, don't check again
+    
+    // Skip death check for 3 seconds after successful submission
+    // This prevents false triggers when data is being reloaded after submission
+    const timeSinceLastSuccess = Date.now() - lastSuccessfulSubmissionRef.current
+    if (timeSinceLastSuccess < 3000) {
+      return
+    }
     
     const start = new Date(currentRound.startedAt).getTime()
     const timeSinceStart = Date.now() - start

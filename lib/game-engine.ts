@@ -290,12 +290,32 @@ export async function ensureDailyGameForPlayer(userId?: string | null, sessionId
           } 
         })
         
-        // Reset all rounds - clear solved words and reset timers
+        // Reset all rounds - clear solved words, reset timers, AND regenerate words
         for (const round of g.rounds || []) {
-          await prisma.roundWord.updateMany({
+          // Regenerate words for this round to ensure fresh game
+          const lengths = spRoundLengths(round.roundNumber)
+          const roundWords = await prisma.roundWord.findMany({
             where: { gameRoundId: round.id },
-            data: { solvedAt: null, attempts: 0 }
+            orderBy: { index: 'asc' }
           })
+          
+          // Regenerate each word with new anagram and solution
+          for (let i = 0; i < roundWords.length; i++) {
+            const len = lengths[i] || lengths[0]
+            const solution = getRandomWord(len)
+            const anagram = solution.split('').sort(() => Math.random() - 0.5).join('')
+            
+            await prisma.roundWord.update({
+              where: { id: roundWords[i].id },
+              data: {
+                anagram,
+                solution,
+                solvedAt: null,
+                attempts: 0
+              }
+            })
+          }
+          
           await prisma.gameRound.update({
             where: { id: round.id },
             data: { 
