@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import { Fraunces, Manrope, Inknut_Antiqua, Rubik } from 'next/font/google'
 import './globals.css'
 import SessionProvider from '@/components/auth/SessionProvider'
@@ -42,6 +43,23 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${fraunces.variable} ${manrope.variable} ${inknut.variable} ${rubik.variable}`}>
       <body className="font-sans">
+        <Script
+          id="scanline-speed-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                const baseHeight = 1000;
+                const baseDuration = 30;
+                const vh = window.innerHeight || baseHeight;
+                const duration = Math.max(20, (vh / baseHeight) * baseDuration);
+                const scanlinesDuration = Math.max(6.67, duration / 3);
+                document.documentElement.style.setProperty('--scanline-duration', duration + 's');
+                document.documentElement.style.setProperty('--scanlines-duration', scanlinesDuration + 's');
+              })();
+            `,
+          }}
+        />
         <ScanlineSpeed />
         <SessionProvider>{children}</SessionProvider>
       </body>

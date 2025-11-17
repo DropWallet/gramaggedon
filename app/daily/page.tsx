@@ -219,10 +219,22 @@ function DailyGameClient() {
       const qs = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ''
       const res = await fetch(`/api/daily/data${qs}`, { cache: 'no-store' })
       if (res.ok) {
-        setData(await res.json())
+        const newData = await res.json()
+        // Only update data if we got valid data back
+        if (newData && newData.game) {
+          setData(newData)
+        }
+      } else if (res.status === 404) {
+        // 404 means no game found - this is expected for new games, don't clear data
+        console.log('No daily game found (404) - this may be expected for new games')
+        // Don't set data to null, keep existing data
       } else {
-        setData(null)
+        // Other errors - log but don't clear data
+        console.error('Error loading daily game data:', res.status)
       }
+      setLoading(false)
+    } catch (error) {
+      console.error('Error in load():', error)
       setLoading(false)
     } finally {
       isLoadingRef.current = false
@@ -273,22 +285,23 @@ function DailyGameClient() {
     if (!currentRound?.startedAt) return
     if (submitting) return // Don't check death condition while submitting
     if (!data) return // Don't check if data is loading
+    if (loading) return // Don't check while loading data
     
     const start = new Date(currentRound.startedAt).getTime()
     const timeSinceStart = Date.now() - start
     
-    // Ignore first 1s after start to prevent false triggers
-    if (timeSinceStart < 1000) return
+    // Ignore first 2s after start to prevent false triggers (increased buffer)
+    if (timeSinceStart < 2000) return
     
     // Only trigger death if time is actually expired (not just calculated as 0 due to rounding)
-    // Check that at least 1 second has passed since the round should have ended
+    // Check that at least 2 seconds have passed since the round should have ended
     const roundDuration = (currentRound.timeSeconds || 120) * 1000
     const expectedEnd = start + roundDuration
-    if (Date.now() >= expectedEnd + 1000) { // Add 1s buffer to prevent false triggers
+    if (Date.now() >= expectedEnd + 2000) { // Add 2s buffer to prevent false triggers
       const anyUnsolved = currentRound.words.some((w: any) => !w.solvedAt)
       if (anyUnsolved) setIsDead(true)
     }
-  }, [remainingSeconds, currentRound, showInterim, submitting, data])
+  }, [remainingSeconds, currentRound, showInterim, submitting, data, loading])
 
   // Interim countdown effect
   useEffect(() => {
@@ -340,7 +353,10 @@ function DailyGameClient() {
         const r = g.rounds.find((rr: any) => rr.roundNumber === g.currentRound)
         if (r) {
           const w = r.words.find((ww: any) => !ww.solvedAt)
-          if (w) w.solvedAt = new Date().toISOString()
+          if (w) {
+            w.solvedAt = new Date().toISOString()
+            w.attempts = (w.attempts || 0) + 1
+          }
         }
         return clone
       })
@@ -355,7 +371,41 @@ function DailyGameClient() {
         }
       } else {
         // Not round complete: pull fresh state in background to sync attempts
-        await load()
+        // Add a delay to ensure database has been updated, and merge with optimistic update
+        setTimeout(async () => {
+          const qs = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ''
+          const res = await fetch(`/api/daily/data${qs}`, { cache: 'no-store' })
+          if (res.ok) {
+            const newData = await res.json()
+            if (newData && newData.game) {
+              // Merge with current optimistic state - preserve solvedAt timestamps
+              setData((prev: any) => {
+                if (!prev) return newData
+                const clone = JSON.parse(JSON.stringify(prev))
+                const g = clone.game
+                const r = g.rounds.find((rr: any) => rr.roundNumber === g.currentRound)
+                if (r) {
+                  // Preserve solvedAt from optimistic update if it exists
+                  const newRound = newData.game.rounds.find((rr: any) => rr.roundNumber === g.currentRound)
+                  if (newRound) {
+                    r.words.forEach((w: any, idx: number) => {
+                      const newWord = newRound.words[idx]
+                      if (w.solvedAt && (!newWord || !newWord.solvedAt)) {
+                        // Keep optimistic solvedAt if new data doesn't have it yet
+                        if (newWord) newWord.solvedAt = w.solvedAt
+                      }
+                    })
+                    r.words = newRound.words
+                  }
+                }
+                // Update other fields from newData
+                clone.game.status = newData.game.status
+                clone.game.currentRound = newData.game.currentRound
+                return clone
+              })
+            }
+          }
+        }, 500) // Increased delay to 500ms to ensure DB commit
       }
     } else {
       // Wrong answer: keep current anagram and do not reload (prevents anagram change)
