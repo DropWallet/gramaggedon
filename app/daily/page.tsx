@@ -269,8 +269,31 @@ function DailyGameClient() {
 
   const game = data?.game
   const currentRound = game?.rounds?.find((r: any) => r.roundNumber === game?.currentRound)
-  const nextWord = currentRound?.words?.find((w: any) => !w.solvedAt)
+  
+  // Safety check: ensure currentRound matches game.currentRound (data might be stale)
+  if (currentRound && game?.currentRound && currentRound.roundNumber !== game.currentRound) {
+    console.error('Round mismatch detected:', {
+      expectedRound: game.currentRound,
+      actualRound: currentRound.roundNumber
+    })
+  }
+  
+  // Safely get next word and solved count, ensuring we have valid data
+  // Only count solved words from the current round
+  const nextWord = currentRound?.words?.find((w: any) => !w.solvedAt && w.anagram)
   const solvedCount = currentRound?.words?.filter((w: any) => w.solvedAt).length || 0
+  
+  // Safety check: if we don't have a valid nextWord but round exists, data might be stale
+  if (!nextWord && currentRound && currentRound.words && currentRound.words.length > 0) {
+    const allSolved = currentRound.words.every((w: any) => w.solvedAt)
+    if (!allSolved) {
+      // Data issue - log for debugging
+      console.warn('No unsolved word found but round not complete - data may be stale', {
+        roundNumber: game?.currentRound,
+        words: currentRound.words.map((w: any) => ({ solvedAt: w.solvedAt, anagram: w.anagram?.substring(0, 5) }))
+      })
+    }
+  }
 
   const remainingSeconds = useMemo(() => {
     if (!currentRound?.startedAt) return 120
@@ -313,15 +336,59 @@ function DailyGameClient() {
           clearInterval(timer)
           setShowInterim(false)
           ;(async () => {
-            // Start the next round now, then load
+            // Start the next round now, then load with retry logic
             if (data?.game?.id) {
-              await fetch('/api/daily/next', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ gameId: data.game.id }),
-              })
+              try {
+                const nextRes = await fetch('/api/daily/next', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ gameId: data.game.id }),
+                })
+                if (!nextRes.ok) {
+                  console.error('Failed to start next round:', nextRes.status)
+                }
+                // Wait a bit for the round to be initialized
+                await new Promise(resolve => setTimeout(resolve, 200))
+              } catch (error) {
+                console.error('Error starting next round:', error)
+              }
             }
-            await load()
+            // Load with retry logic - fetch directly to ensure fresh data
+            const qs = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ''
+            let retries = 3
+            while (retries > 0) {
+              try {
+                const res = await fetch(`/api/daily/data${qs}`, { cache: 'no-store' })
+                if (res.ok) {
+                  const newData = await res.json()
+                  if (newData?.game?.rounds) {
+                    const newRound = newData.game.rounds.find((r: any) => r.roundNumber === newData.game.currentRound)
+                    if (newRound && newRound.words && newRound.words.length > 0) {
+                      // Valid data received for the new round, update state
+                      setData(newData)
+                      break
+                    } else {
+                      console.warn('Round data incomplete, retrying...', { currentRound: newData.game.currentRound, roundExists: !!newRound })
+                    }
+                  }
+                } else if (res.status === 404) {
+                  console.error('Game not found (404) after round transition - this should not happen')
+                  // Don't retry on 404, it means the game doesn't exist
+                  break
+                }
+                retries--
+                if (retries > 0) {
+                  // Wait before retrying
+                  await new Promise(resolve => setTimeout(resolve, 300))
+                }
+              } catch (error) {
+                console.error('Error loading data after round transition:', error)
+                retries--
+                if (retries > 0) {
+                  await new Promise(resolve => setTimeout(resolve, 300))
+                }
+              }
+            }
           })()
           return 0
         }
@@ -329,7 +396,7 @@ function DailyGameClient() {
       })
     }, 1000)
     return () => clearInterval(timer)
-  }, [showInterim])
+  }, [showInterim, data?.game?.id, sessionId])
 
   async function submit() {
     if (!answer.trim() || submitting || !currentRound || !game) return
