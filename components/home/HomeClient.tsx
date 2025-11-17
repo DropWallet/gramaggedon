@@ -44,7 +44,7 @@ export default function HomeClient({ user }: HomeClientProps) {
 
             <div className="w-full px-5 flex flex-col gap-[20px]">
               <Link href="/daily" className="btn-primary btn-primary--animated">
-                <span className="text-body-medium">Play today's game</span>
+                <span className="text-body-medium">Play today&apos;s game</span>
               </Link>
 
               <div className="flex flex-col gap-[20px]">

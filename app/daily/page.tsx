@@ -383,7 +383,7 @@ function DailyGameClient() {
   if (data.completedAt || game.status === 'COMPLETED') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 max-w-md mx-auto text-center scanlines">
-        <h1 className="text-3xl font-bold mb-4">You finished today's game!</h1>
+        <h1 className="text-3xl font-bold mb-4">You finished today&apos;s game!</h1>
         <p className="text-gray-600">Come back tomorrow for a new challenge.</p>
       </div>
     )
