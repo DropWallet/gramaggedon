@@ -280,9 +280,26 @@ export async function ensureDailyGameForPlayer(userId?: string | null, sessionId
           const startMs = current.startedAt ? new Date(current.startedAt).getTime() : 0
           const durationMs = (current.timeSeconds || g.roundTimeSeconds || 120) * 1000
           const expired = startMs > 0 ? Date.now() >= startMs + durationMs : false
-          // If no progress OR timer expired, refresh start time to give a full timer
-          if (!anySolved || expired || !current.startedAt) {
-            await prisma.gameRound.update({ where: { id: current.id }, data: { startedAt: new Date(), endedAt: null } })
+          
+          // If timer expired or no progress, reset the round completely
+          if (expired || (!anySolved && !current.startedAt)) {
+            // Reset all solved words in the current round
+            await prisma.roundWord.updateMany({
+              where: { gameRoundId: current.id },
+              data: { solvedAt: null, attempts: 0 }
+            })
+            // Reset round start time
+            await prisma.gameRound.update({ 
+              where: { id: current.id }, 
+              data: { startedAt: new Date(), endedAt: null } 
+            })
+            console.log(`Reset round ${current.roundNumber} for user ${userId || sessionId} - timer expired or no progress`)
+          } else if (!anySolved && current.startedAt) {
+            // Just refresh start time if no progress but timer hasn't expired
+            await prisma.gameRound.update({ 
+              where: { id: current.id }, 
+              data: { startedAt: new Date(), endedAt: null } 
+            })
           }
         }
         const refreshed = await prisma.game.findUnique({ where: { id: g.id }, include: { rounds: { include: { words: true }, orderBy: { roundNumber: 'asc' } } } })
@@ -383,7 +400,23 @@ export async function submitDailyAnswer(opts: { gameId: string; roundNumber: num
   await prisma.roundWord.update({ where: { id: currentWord.id }, data: { attempts: { increment: 1 } } })
 
   const norm = (s: string) => s.trim().toLowerCase()
-  const isCorrect = norm(guess) === norm(currentWord.solution)
+  const normalizedGuess = norm(guess)
+  const normalizedSolution = norm(currentWord.solution)
+  const isCorrect = normalizedGuess === normalizedSolution
+  
+  // Log mismatch for debugging
+  if (!isCorrect) {
+    console.warn('Answer mismatch:', {
+      gameId,
+      roundNumber,
+      wordIndex: currentWord.index,
+      anagram: currentWord.anagram,
+      solution: currentWord.solution,
+      guess: normalizedGuess,
+      expected: normalizedSolution
+    })
+  }
+  
   if (!isCorrect) return { isCorrect: false, message: 'Nope! Try again.' }
 
   await prisma.roundWord.update({ where: { id: currentWord.id }, data: { solvedAt: new Date() } })

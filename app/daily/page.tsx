@@ -33,6 +33,7 @@ function DailyGameClient() {
   const [isWinner, setIsWinner] = useState(false)
   const isLoadingRef = useRef(false)
   const [inputWidth, setInputWidth] = useState<number>(220) // Will be updated by AnswerInput
+  const nextRoundDataRef = useRef<any>(null) // Preloaded data for next round (using ref to avoid closure issues)
 
   // Debug: Complete the round when pressing UP arrow key
   useEffect(() => {
@@ -340,72 +341,76 @@ function DailyGameClient() {
 
   // Interim countdown effect
   useEffect(() => {
-    if (!showInterim) return
+    if (!showInterim) {
+      // Clear nextRoundData when not in interim
+      nextRoundDataRef.current = null
+      return
+    }
+    
     setInterimSeconds(5)
+    
+    // Start loading the next round data immediately when interim screen shows
+    if (data?.game?.id) {
+      ;(async () => {
+        try {
+          const nextRes = await fetch('/api/daily/next', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gameId: data.game.id }),
+          })
+          if (nextRes.ok) {
+            const newData = await nextRes.json()
+            if (newData?.game?.rounds) {
+              const newRound = newData.game.rounds.find((r: any) => r.roundNumber === newData.game.currentRound)
+              if (newRound && newRound.words && newRound.words.length > 0) {
+                const allWordsValid = newRound.words.every((w: any) => w.anagram && w.anagram.length > 0)
+                if (allWordsValid) {
+                  // Store the preloaded data in ref (accessible in timer callback)
+                  nextRoundDataRef.current = newData
+                  console.log('Preloaded next round data:', { round: newData.game.currentRound, wordsCount: newRound.words.length })
+                } else {
+                  console.warn('Round words invalid from /api/daily/next')
+                }
+              } else {
+                console.warn('Round data incomplete from /api/daily/next')
+              }
+            } else {
+              console.warn('No rounds in response from /api/daily/next')
+            }
+          } else {
+            console.error('Failed to preload next round:', nextRes.status)
+            const errorText = await nextRes.text()
+            console.error('Error details:', errorText)
+          }
+        } catch (error) {
+          console.error('Error preloading next round:', error)
+        }
+      })()
+    }
+    
     const timer = setInterval(() => {
       setInterimSeconds((s) => {
         if (s <= 1) {
           clearInterval(timer)
           setShowInterim(false)
-          ;(async () => {
-            // Start the next round and get updated data directly
-            if (data?.game?.id) {
-              try {
-                const nextRes = await fetch('/api/daily/next', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ gameId: data.game.id }),
-                })
-                if (nextRes.ok) {
-                  const newData = await nextRes.json()
-                  if (newData?.game?.rounds) {
-                    const newRound = newData.game.rounds.find((r: any) => r.roundNumber === newData.game.currentRound)
-                    if (newRound && newRound.words && newRound.words.length > 0) {
-                      // Verify all words have anagrams
-                      const allWordsValid = newRound.words.every((w: any) => w.anagram && w.anagram.length > 0)
-                      if (allWordsValid) {
-                        // Valid data received for the new round, update state
-                        console.log('Successfully loaded new round data from /api/daily/next:', { round: newData.game.currentRound, wordsCount: newRound.words.length })
-                        setData(newData)
-                      } else {
-                        console.warn('Round words invalid from /api/daily/next, falling back to /api/daily/data')
-                        // Fallback to regular data endpoint
-                        await load()
-                      }
-                    } else {
-                      console.warn('Round data incomplete from /api/daily/next, falling back to /api/daily/data')
-                      // Fallback to regular data endpoint
-                      await load()
-                    }
-                  } else {
-                    console.warn('No rounds in response from /api/daily/next, falling back to /api/daily/data')
-                    // Fallback to regular data endpoint
-                    await load()
-                  }
-                } else {
-                  console.error('Failed to start next round:', nextRes.status)
-                  const errorText = await nextRes.text()
-                  console.error('Error details:', errorText)
-                  // Fallback to regular data endpoint
-                  await load()
-                }
-              } catch (error) {
-                console.error('Error starting next round:', error)
-                // Fallback to regular data endpoint
-                await load()
-              }
-            } else {
-              // No gameId, use regular load
-              await load()
-            }
-          })()
+          
+          // If we have preloaded data, use it immediately (no flash!)
+          if (nextRoundDataRef.current) {
+            setData(nextRoundDataRef.current)
+            nextRoundDataRef.current = null
+            console.log('Swapped to preloaded round data')
+          } else {
+            // Fallback to loading if preload didn't complete in time
+            console.warn('Preload not ready, falling back to load()')
+            load()
+          }
           return 0
         }
         return s - 1
       })
     }, 1000)
     return () => clearInterval(timer)
-  }, [showInterim, data?.game?.id, sessionId])
+  }, [showInterim, data?.game?.id])
 
   async function submit() {
     if (!answer.trim() || submitting || !currentRound || !game) return
