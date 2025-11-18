@@ -661,10 +661,17 @@ function DailyGameClient() {
             <div className="flex items-start flex-grow-0 flex-shrink-0 gap-3">
               {Array.from({ length: totalWords }, (_, i) => {
                 const isFilled = i < currentWordNumber - 1
+                const isActive = i === currentWordNumber - 1
                 return (
                   <div
                     key={i}
-                    className={`game-checked-dot ${isFilled ? 'game-checked-dot--filled' : 'game-checked-dot--empty'}`}
+                    className={`game-checked-dot ${
+                      isFilled 
+                        ? 'game-checked-dot--filled' 
+                        : isActive 
+                        ? 'game-checked-dot--active' 
+                        : 'game-checked-dot--empty'
+                    }`}
                   />
                 )
               })}

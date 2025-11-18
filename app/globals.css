@@ -491,6 +491,10 @@ body { background: var(--color-bg); }
   background-color: rgba(255, 112, 217, 0.16);
   opacity: 0.60;
 }
+.game-checked-dot--active {
+  background-color: rgba(250, 226, 110, 0.24);
+  border-color: var(--color-accent-yellow);
+}
 .game-letter-box {
   width: 36px;
   height: 36px;
