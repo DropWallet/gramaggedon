@@ -86,95 +86,95 @@ function LoginForm() {
               height={48}
             />
           </Link>
-        </div>
+          </div>
 
         <div className="flex-1 flex items-center justify-center w-full">
           <section className="home-content py-10">
-            {/* Title */}
+          {/* Title */}
             <div className="flex flex-col items-center gap-4">
               <p className="text-body-medium text-[color:var(--color-accent-pink)]">
                 Log the fuck in.
               </p>
-            </div>
+          </div>
 
             <div className="w-full flex flex-col gap-[20px]">
-              {registered && (
+          {registered && (
                 <div className="rounded-md border border-green-500/60 bg-green-500/10 px-4 py-3">
                   <p className="text-sm text-green-200 text-center">
-                    Account created successfully! Please log in.
-                  </p>
-                </div>
-              )}
+                Account created successfully! Please log in.
+              </p>
+            </div>
+          )}
 
-              {errors.submit && (
+            {errors.submit && (
                 <div className="rounded-md border border-red-500/60 bg-red-500/10 px-4 py-3">
                   <p className="text-sm text-red-200 text-center">{errors.submit}</p>
-                </div>
-              )}
+              </div>
+            )}
 
               {/* Google sign in */}
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={isGoogleLoading || isLoading}
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isGoogleLoading || isLoading}
                 className="btn-tertiary w-full flex items-center justify-center gap-3 rounded-[8px] bg-white py-2.5 px-6 text-body-small text-black disabled:opacity-60 disabled:cursor-not-allowed"
-              >
+            >
                 <Image
                   src="/ri_google-fill.svg"
                   alt="Google"
                   width={24}
                   height={24}
                 />
-                {isGoogleLoading ? 'Signing in...' : 'Continue with Google'}
-              </button>
+              {isGoogleLoading ? 'Signing in...' : 'Continue with Google'}
+            </button>
 
               {/* Divider */}
               <div className="flex items-center gap-3 w-full">
                 <div className="flex-1 h-px bg-[rgba(255,112,217,0.4)]" />
                 <span className="text-body-medium text-[color:var(--color-accent-pink)]">or</span>
                 <div className="flex-1 h-px bg-[rgba(255,112,217,0.4)]" />
-              </div>
+            </div>
 
               {/* Form */}
               <form className="flex flex-col gap-4 w-full" onSubmit={handleSubmit}>
                 <div className="w-full">
-                  <input
-                    id="emailOrUsername"
-                    name="emailOrUsername"
-                    type="text"
-                    autoComplete="username"
-                    required
-                    value={formData.emailOrUsername}
-                    onChange={(e) => setFormData({ ...formData, emailOrUsername: e.target.value })}
+                <input
+                  id="emailOrUsername"
+                  name="emailOrUsername"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={formData.emailOrUsername}
+                  onChange={(e) => setFormData({ ...formData, emailOrUsername: e.target.value })}
                     className="input-form w-full rounded-[8px] px-4 py-2.5 text-[color:var(--color-accent-pink)] placeholder-[rgba(255,112,217,0.6)] focus:outline-none"
-                    placeholder="Email or username"
-                  />
-                </div>
+                  placeholder="Email or username"
+                />
+              </div>
 
                 <div className="w-full">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="input-form w-full rounded-[8px] px-4 py-2.5 text-[color:var(--color-accent-pink)] placeholder-[rgba(255,112,217,0.6)] focus:outline-none"
-                    placeholder="Password"
-                  />
-                </div>
+                  placeholder="Password"
+                />
+              </div>
 
-                <button
-                  type="submit"
-                  disabled={isLoading || isGoogleLoading}
+              <button
+                type="submit"
+                disabled={isLoading || isGoogleLoading}
                   className="btn-primary btn-primary--small disabled:opacity-60 disabled:cursor-not-allowed"
-                >
+              >
                   <span className="text-body-small">
-                    {isLoading ? 'Logging in...' : 'Log in'}
+                {isLoading ? 'Logging in...' : 'Log in'}
                   </span>
-                </button>
-              </form>
+              </button>
+            </form>
 
               <YellowLink href="/register" className="mt-2 text-body-small">
                 Create new account

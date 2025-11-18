@@ -54,21 +54,21 @@ export default function RoundTimer({ anagram, isFinalRound }: RoundTimerProps) {
   return (
     <div className="game-timer-section">
       <div className="game-timer-display">
-        {isFinalRound ? (
-          <>
+      {isFinalRound ? (
+        <>
             <div className="game-timer-number">
-              {String(elapsedTime).padStart(2, '0')}
-            </div>
+            {String(elapsedTime).padStart(2, '0')}
+          </div>
             <div className="text-body-small text-[color:var(--color-accent-pink)]" style={{ fontSize: '12px', letterSpacing: '-0.1em', fontWeight: 500 }}>seconds elapsed</div>
-          </>
-        ) : (
-          <>
+        </>
+      ) : (
+        <>
             <div className="game-timer-number">
-              {String(timeLeft ?? anagram.timeSeconds ?? 0).padStart(2, '0')}
-            </div>
+            {String(timeLeft ?? anagram.timeSeconds ?? 0).padStart(2, '0')}
+          </div>
             <div className="text-body-small text-[color:var(--color-accent-pink)]" style={{ fontSize: '12px', letterSpacing: '-0.1em', fontWeight: 500 }}>seconds remaining</div>
-          </>
-        )}
+        </>
+      )}
       </div>
     </div>
   )

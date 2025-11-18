@@ -103,12 +103,12 @@ export default function RegisterPage() {
         {/* Skull icon */}
         <div className="absolute top-4 inset-x-0 flex justify-center z-10">
           <Link href="/" className="block">
-            <Image
-              src="/skull-signup.png"
-              alt="Skull"
-              width={49}
-              height={48}
-            />
+          <Image
+            src="/skull-signup.png"
+            alt="Skull"
+            width={49}
+            height={48}
+          />
           </Link>
         </div>
 

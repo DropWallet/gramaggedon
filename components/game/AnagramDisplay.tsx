@@ -7,7 +7,7 @@ interface AnagramDisplayProps {
 export default function AnagramDisplay({ anagram }: AnagramDisplayProps) {
   return (
     <p className="self-stretch flex-shrink-0 text-body-large-spaced text-[color:var(--color-accent-yellow)] text-center">
-      {anagram.toUpperCase()}
+        {anagram.toUpperCase()}
     </p>
   )
 }

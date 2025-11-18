@@ -81,7 +81,7 @@ export default function AnswerInput({ answer, setAnswer, maxLength, onSubmit, on
       >
         {letter && (
           <p className="self-stretch flex-shrink-0 w-9 text-body-medium text-center text-black">
-            {letter.toUpperCase()}
+        {letter.toUpperCase()}
           </p>
         )}
       </div>
@@ -136,7 +136,7 @@ export default function AnswerInput({ answer, setAnswer, maxLength, onSubmit, on
       />
       
       {/* Visual letter boxes */}
-      {boxes}
+        {boxes}
     </div>
   )
 }

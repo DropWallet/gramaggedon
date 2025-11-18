@@ -64,9 +64,9 @@ export default function RoundTransition({ nextRound, countdownSeconds, onCountdo
             </p>
           </div>
           <p className="flex-grow-0 flex-shrink-0 text-[100px] font-bold italic text-center text-[color:var(--color-accent-pink)]" style={{ fontFamily: 'var(--font-rubik), sans-serif' }}>
-            {String(timeLeft).padStart(2, '0')}
+              {String(timeLeft).padStart(2, '0')}
           </p>
-        </div>
+            </div>
       </main>
     </div>
   )
