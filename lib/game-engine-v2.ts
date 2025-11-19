@@ -321,7 +321,7 @@ export async function getDailyGameV2(userId?: string | null, sessionId?: string 
   // If result exists and game is successfully completed, return it (don't create new)
   if (result && result.completedAt) {
     const solvedWords = (result.solvedWords as SolvedWords | null) || {}
-    const allRoundsComplete = result.game.rounds.every((r) => {
+    const allRoundsComplete = result.game.rounds.every((r: typeof result.game.rounds[0]) => {
       const roundKey = String(r.roundNumber)
       const solved = getSolvedIndices(solvedWords, roundKey)
       return solved.length === r.words.length
