@@ -22,6 +22,7 @@ export default function HomeClient({ user }: HomeClientProps) {
   const [hasPlayed, setHasPlayed] = useState(false)
   const [countdown, setCountdown] = useState<string>('00:00:00')
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [gameNumber, setGameNumber] = useState<number>(1)
 
   // Get session ID for logged-out users
   const [sessionIdReady, setSessionIdReady] = useState(false)
@@ -140,6 +141,24 @@ export default function HomeClient({ user }: HomeClientProps) {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [sessionId, sessionIdReady, user]) // Re-check when user logs in/out
+
+  // Fetch game number
+  useEffect(() => {
+    async function fetchGameNumber() {
+      try {
+        const response = await fetch('/api/daily/round-number')
+        if (response.ok) {
+          const data = await response.json()
+          setGameNumber(data.roundNumber || 1)
+        }
+      } catch (error) {
+        console.error('Error fetching game number:', error)
+        // Default to 1 on error
+        setGameNumber(1)
+      }
+    }
+    fetchGameNumber()
+  }, [])
 
   // Reset game (secret click on date)
   async function handleReset() {
@@ -305,7 +324,7 @@ export default function HomeClient({ user }: HomeClientProps) {
             >
               {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
               <br />
-              Battle—0
+              Game—{gameNumber}
             </span>
           </footer>
         </main>

@@ -309,8 +309,8 @@ body { background: var(--color-bg); }
 }
 /* Auth pages padding */
 .home-shell--tight .home-content {
-  padding-left: 12px;
-  padding-right: 12px;
+  padding-left: 20px;
+  padding-right: 20px;
 }
 .home-copy {
   display: flex; flex-direction: column; align-items: center; gap: var(--space-gap-sm); align-self: stretch;
@@ -597,7 +597,7 @@ body { background: var(--color-bg); }
 
 /* Animated Skull SVG Styles */
 /* Each stroke draws sequentially, then reverses, then repeats */
-/* Forward loop time: 4000ms (15 strokes × ~266.67ms each) */
+/* Forward loop time: 4000ms (12 strokes × ~333.33ms each) */
 /* 200ms delay after reverse before next loop starts */
 /* Total duration: 4200ms (4000ms animation + 200ms delay) */
 /* Animation alternates direction: forward, reverse, forward, reverse... */
@@ -609,8 +609,8 @@ body { background: var(--color-bg); }
 }
 
 .svg-elem-2 {
-  stroke-dasharray: 184.32925415039062px;
-  stroke-dashoffset: 184.32925415039062px;
+  stroke-dasharray: 190px;
+  stroke-dashoffset: 190px;
   animation: draw-stroke-2 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
 }
 
@@ -621,165 +621,106 @@ body { background: var(--color-bg); }
 }
 
 .svg-elem-4 {
-  stroke-dasharray: 184.32925415039062px;
-  stroke-dashoffset: 184.32925415039062px;
+  stroke-dasharray: 41.599822998046875px;
+  stroke-dashoffset: 41.599822998046875px;
   animation: draw-stroke-4 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
 }
 
 .svg-elem-5 {
-  stroke-dasharray: 41.599822998046875px;
-  stroke-dashoffset: 41.599822998046875px;
+  stroke-dasharray: 41.59981918334961px;
+  stroke-dashoffset: 41.59981918334961px;
   animation: draw-stroke-5 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
 }
 
 .svg-elem-6 {
-  stroke-dasharray: 41.59981918334961px;
-  stroke-dashoffset: 41.59981918334961px;
+  stroke-dasharray: 41.599822998046875px;
+  stroke-dashoffset: 41.599822998046875px;
   animation: draw-stroke-6 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
 }
 
 .svg-elem-7 {
-  stroke-dasharray: 41.599822998046875px;
-  stroke-dashoffset: 41.599822998046875px;
+  stroke-dasharray: 41.59981918334961px;
+  stroke-dashoffset: 41.59981918334961px;
   animation: draw-stroke-7 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
 }
 
 .svg-elem-8 {
-  stroke-dasharray: 8px;
-  stroke-dashoffset: 8px;
+  stroke-dasharray: 6px;
+  stroke-dashoffset: 6px;
   animation: draw-stroke-8 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
 }
 
 .svg-elem-9 {
-  stroke-dasharray: 8px;
-  stroke-dashoffset: 8px;
+  stroke-dasharray: 6px;
+  stroke-dashoffset: 6px;
   animation: draw-stroke-9 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
 }
 
 .svg-elem-10 {
-  stroke-dasharray: 41.59981918334961px;
-  stroke-dashoffset: 41.59981918334961px;
+  stroke-dasharray: 6px;
+  stroke-dashoffset: 6px;
   animation: draw-stroke-10 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
-}
-
-.svg-elem-11 {
-  stroke-dasharray: 8px;
-  stroke-dashoffset: 8px;
-  animation: draw-stroke-11 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
-}
-
-.svg-elem-12 {
-  stroke-dasharray: 8px;
-  stroke-dashoffset: 8px;
-  animation: draw-stroke-12 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
-}
-
-.svg-elem-13 {
-  stroke-dasharray: 8px;
-  stroke-dashoffset: 8px;
-  animation: draw-stroke-13 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
-}
-
-.svg-elem-14 {
-  stroke-dasharray: 8px;
-  stroke-dashoffset: 8px;
-  animation: draw-stroke-14 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
-}
-
-.svg-elem-15 {
-  stroke-dasharray: 8px;
-  stroke-dashoffset: 8px;
-  animation: draw-stroke-15 4200ms cubic-bezier(0.47, 0, 0.745, 0.715) 0ms infinite alternate;
 }
 
 /* Keyframes - each stroke draws during its time window, then stays visible until loop resets */
 /* Drawing completes at 95.24% (4000ms / 4200ms), then holds at hidden for 200ms delay (95.24% to 100%) */
+/* With 12 paths, each takes ~8.33% of the 4000ms active animation time */
 @keyframes draw-stroke-1 {
-  0%, 6.35% { stroke-dashoffset: 184.32923889160156px; }
-  6.35%, 95.24% { stroke-dashoffset: 0; }
+  0%, 8.33% { stroke-dashoffset: 184.32923889160156px; }
+  8.33%, 95.24% { stroke-dashoffset: 0; }
   95.24%, 100% { stroke-dashoffset: 184.32923889160156px; }
 }
 
 @keyframes draw-stroke-2 {
-  0%, 12.7% { stroke-dashoffset: 184.32925415039062px; }
-  12.7%, 95.24% { stroke-dashoffset: 0; }
-  95.24%, 100% { stroke-dashoffset: 184.32925415039062px; }
+  0%, 16.67% { stroke-dashoffset: 190px; }
+  16.67%, 95.24% { stroke-dashoffset: 0; }
+  95.24%, 100% { stroke-dashoffset: 190px; }
 }
 
 @keyframes draw-stroke-3 {
-  0%, 19.05% { stroke-dashoffset: 184.32925415039062px; }
-  19.05%, 95.24% { stroke-dashoffset: 0; }
+  0%, 25% { stroke-dashoffset: 184.32925415039062px; }
+  25%, 95.24% { stroke-dashoffset: 0; }
   95.24%, 100% { stroke-dashoffset: 184.32925415039062px; }
 }
 
 @keyframes draw-stroke-4 {
-  0%, 25.4% { stroke-dashoffset: 184.32925415039062px; }
-  25.4%, 95.24% { stroke-dashoffset: 0; }
-  95.24%, 100% { stroke-dashoffset: 184.32925415039062px; }
+  0%, 33.33% { stroke-dashoffset: 41.599822998046875px; }
+  33.33%, 95.24% { stroke-dashoffset: 0; }
+  95.24%, 100% { stroke-dashoffset: 41.599822998046875px; }
 }
 
 @keyframes draw-stroke-5 {
-  0%, 31.75% { stroke-dashoffset: 41.599822998046875px; }
-  31.75%, 95.24% { stroke-dashoffset: 0; }
-  95.24%, 100% { stroke-dashoffset: 41.599822998046875px; }
+  0%, 41.67% { stroke-dashoffset: 41.59981918334961px; }
+  41.67%, 95.24% { stroke-dashoffset: 0; }
+  95.24%, 100% { stroke-dashoffset: 41.59981918334961px; }
 }
 
 @keyframes draw-stroke-6 {
-  0%, 38.1% { stroke-dashoffset: 41.59981918334961px; }
-  38.1%, 95.24% { stroke-dashoffset: 0; }
-  95.24%, 100% { stroke-dashoffset: 41.59981918334961px; }
-}
-
-@keyframes draw-stroke-7 {
-  0%, 44.45% { stroke-dashoffset: 41.599822998046875px; }
-  44.45%, 95.24% { stroke-dashoffset: 0; }
+  0%, 50% { stroke-dashoffset: 41.599822998046875px; }
+  50%, 95.24% { stroke-dashoffset: 0; }
   95.24%, 100% { stroke-dashoffset: 41.599822998046875px; }
 }
 
-@keyframes draw-stroke-8 {
-  0%, 50.8% { stroke-dashoffset: 8px; }
-  50.8%, 95.24% { stroke-dashoffset: 0; }
-  95.24%, 100% { stroke-dashoffset: 8px; }
-}
-
-@keyframes draw-stroke-9 {
-  0%, 57.15% { stroke-dashoffset: 8px; }
-  57.15%, 95.24% { stroke-dashoffset: 0; }
-  95.24%, 100% { stroke-dashoffset: 8px; }
-}
-
-@keyframes draw-stroke-10 {
-  0%, 63.5% { stroke-dashoffset: 41.59981918334961px; }
-  63.5%, 95.24% { stroke-dashoffset: 0; }
+@keyframes draw-stroke-7 {
+  0%, 58.33% { stroke-dashoffset: 41.59981918334961px; }
+  58.33%, 95.24% { stroke-dashoffset: 0; }
   95.24%, 100% { stroke-dashoffset: 41.59981918334961px; }
 }
 
-@keyframes draw-stroke-11 {
-  0%, 69.85% { stroke-dashoffset: 8px; }
-  69.85%, 95.24% { stroke-dashoffset: 0; }
-  95.24%, 100% { stroke-dashoffset: 8px; }
+@keyframes draw-stroke-8 {
+  0%, 66.67% { stroke-dashoffset: 6px; }
+  66.67%, 95.24% { stroke-dashoffset: 0; }
+  95.24%, 100% { stroke-dashoffset: 6px; }
 }
 
-@keyframes draw-stroke-12 {
-  0%, 76.2% { stroke-dashoffset: 8px; }
-  76.2%, 95.24% { stroke-dashoffset: 0; }
-  95.24%, 100% { stroke-dashoffset: 8px; }
+@keyframes draw-stroke-9 {
+  0%, 75% { stroke-dashoffset: 6px; }
+  75%, 95.24% { stroke-dashoffset: 0; }
+  95.24%, 100% { stroke-dashoffset: 6px; }
 }
 
-@keyframes draw-stroke-13 {
-  0%, 82.55% { stroke-dashoffset: 8px; }
-  82.55%, 95.24% { stroke-dashoffset: 0; }
-  95.24%, 100% { stroke-dashoffset: 8px; }
-}
-
-@keyframes draw-stroke-14 {
-  0%, 88.9% { stroke-dashoffset: 8px; }
-  88.9%, 95.24% { stroke-dashoffset: 0; }
-  95.24%, 100% { stroke-dashoffset: 8px; }
-}
-
-@keyframes draw-stroke-15 {
-  0%, 88.9% { stroke-dashoffset: 8px; }
-  88.9%, 95.24% { stroke-dashoffset: 0; }
-  95.24%, 100% { stroke-dashoffset: 8px; }
+@keyframes draw-stroke-10 {
+  0%, 83.33% { stroke-dashoffset: 6px; }
+  83.33%, 95.24% { stroke-dashoffset: 0; }
+  95.24%, 100% { stroke-dashoffset: 6px; }
 }
