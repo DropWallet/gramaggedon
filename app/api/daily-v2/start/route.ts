@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         rounds: result.game.rounds.map((r: typeof result.game.rounds[0]) => ({
           roundNumber: r.roundNumber,
           words: r.words
-            .sort((a, b) => a.index - b.index)
+            .sort((a: typeof r.words[0], b: typeof r.words[0]) => a.index - b.index)
             .map((w: typeof r.words[0]) => ({
               index: w.index,
               anagram: w.anagram,
