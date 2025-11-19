@@ -40,7 +40,7 @@ function getSolvedIndices(solvedWords: SolvedWords | null, roundKey: string): nu
   if (!roundData) return []
   
   if (isNewFormat(solvedWords)) {
-    return roundData.map(entry => entry.index).sort((a, b) => a - b)
+    return (roundData as SolvedWordEntry[]).map(entry => entry.index).sort((a, b) => a - b)
   } else {
     return (roundData as number[]).sort((a, b) => a - b)
   }
@@ -55,7 +55,7 @@ function getSolvedEntries(solvedWords: SolvedWords | null, roundKey: string): So
   if (!roundData) return []
   
   if (isNewFormat(solvedWords)) {
-    return roundData.sort((a, b) => a.index - b.index)
+    return (roundData as SolvedWordEntry[]).sort((a, b) => a.index - b.index)
   } else {
     // Convert old format to new format (use current time as fallback for old data)
     const indices = roundData as number[]
