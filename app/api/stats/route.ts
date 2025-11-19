@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import { getSolvedIndices, getSolvedEntries } from '@/lib/game-engine-v2'
+import { getSolvedIndices, getSolvedEntries, type SolvedWords } from '@/lib/game-engine-v2'
 
 export const dynamic = 'force-dynamic'
 
@@ -127,7 +127,7 @@ export async function GET() {
     dailyGames.forEach((result) => {
       // V2 daily game: use solvedWords and roundStartTimes
       if (result.solvedWords !== null) {
-        const solvedWords = result.solvedWords
+        const solvedWords = result.solvedWords as SolvedWords | null
         const roundStartTimes = result.roundStartTimes as Record<string, string> | null
         
         if (solvedWords) {
