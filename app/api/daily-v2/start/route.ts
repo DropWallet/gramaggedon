@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     }
     
     // If all rounds complete, return completed state
-    const allComplete = result.game.rounds.every(r => {
+    const allComplete = result.game.rounds.every((r: typeof result.game.rounds[0]) => {
       const roundKey = String(r.roundNumber)
       const solved = getSolvedIndices(solvedWords, roundKey)
       return solved.length === r.words.length
@@ -63,11 +63,11 @@ export async function POST(request: Request) {
       allComplete,
       game: {
         id: result.game.id,
-        rounds: result.game.rounds.map(r => ({
+        rounds: result.game.rounds.map((r: typeof result.game.rounds[0]) => ({
           roundNumber: r.roundNumber,
           words: r.words
             .sort((a, b) => a.index - b.index)
-            .map(w => ({
+            .map((w: typeof r.words[0]) => ({
               index: w.index,
               anagram: w.anagram,
               solution: w.solution,
