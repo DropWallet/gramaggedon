@@ -15,40 +15,26 @@ export default function RoundTransition({ nextRound, countdownSeconds, onCountdo
   const [timeLeft, setTimeLeft] = useState(countdownSeconds)
 
   useEffect(() => {
-    // Calculate time until next round starts
-    // If nextRoundStartTime is provided, use it directly
-    // Otherwise use a simple countdown
-    const updateCountdown = () => {
-      if (nextRoundStartTime) {
-        const now = new Date()
-        const nextRoundStart = new Date(nextRoundStartTime)
-        const remaining = Math.max(0, Math.floor((nextRoundStart.getTime() - now.getTime()) / 1000))
-        setTimeLeft(remaining)
-        
-        if (remaining <= 0) {
-          onCountdownComplete()
-        }
-      } else {
-        // Fallback to simple countdown from current value
+    // Reset to initial countdown when component mounts or countdownSeconds changes
+    setTimeLeft(countdownSeconds)
+    
+    // Simple countdown timer
+    const interval = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
+          clearInterval(interval)
+          // Call onCountdownComplete after a brief delay to ensure state is updated
+          setTimeout(() => {
             onCountdownComplete()
+          }, 0)
             return 0
           }
           return prev - 1
         })
-      }
-    }
-
-    // Initialize countdown immediately if we have the start time
-    if (nextRoundStartTime) {
-      updateCountdown()
-    }
-
-    const interval = setInterval(updateCountdown, 1000)
+    }, 1000)
 
     return () => clearInterval(interval)
-  }, [timeLeft, onCountdownComplete, nextRoundStartTime, countdownSeconds])
+  }, [countdownSeconds]) // Remove onCountdownComplete from deps to prevent restart
 
   return (
     <div className="home-shell scanlines">

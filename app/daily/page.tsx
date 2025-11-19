@@ -199,18 +199,18 @@ function DailyGameClient() {
     isLoadingRef.current = true
     
     try {
-      const res = await fetch('/api/daily/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-      })
-      if (res.ok) {
-        const payload = await res.json()
-        setData(payload)
-        setLoading(false)
-        return true
-      }
-      return false
+    const res = await fetch('/api/daily/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId }),
+    })
+    if (res.ok) {
+      const payload = await res.json()
+      setData(payload)
+      setLoading(false)
+      return true
+    }
+    return false
     } finally {
       isLoadingRef.current = false
     }
@@ -224,9 +224,9 @@ function DailyGameClient() {
     isLoadingRef.current = true
     
     try {
-      const qs = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ''
-      const res = await fetch(`/api/daily/data${qs}`, { cache: 'no-store' })
-      if (res.ok) {
+    const qs = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ''
+    const res = await fetch(`/api/daily/data${qs}`, { cache: 'no-store' })
+    if (res.ok) {
         const newData = await res.json()
         // Only update data if we got valid data back
         if (newData && newData.game) {
@@ -236,11 +236,11 @@ function DailyGameClient() {
         // 404 means no game found - this is expected for new games, don't clear data
         console.log('No daily game found (404) - this may be expected for new games')
         // Don't set data to null, keep existing data
-      } else {
+    } else {
         // Other errors - log but don't clear data
         console.error('Error loading daily game data:', res.status)
-      }
-      setLoading(false)
+    }
+    setLoading(false)
     } catch (error) {
       console.error('Error in load():', error)
       setLoading(false)
@@ -618,12 +618,12 @@ function DailyGameClient() {
     <div className="home-shell home-shell--tight scanlines">
       <main className="home-main flex flex-col relative">
         {/* Success Banner - absolutely positioned, spans full width */}
-        {showSuccess && (
+      {showSuccess && (
           <SuccessBanner message={showSuccess} />
-        )}
+      )}
 
         {/* Error Banner - absolutely positioned, spans full width */}
-        {lastError && (
+      {lastError && (
           <ErrorBanner message={lastError} />
         )}
 
@@ -683,11 +683,11 @@ function DailyGameClient() {
 
           {/* Answer Input and Submit Button */}
           <div className="flex flex-col items-center flex-grow-0 flex-shrink-0 gap-6 self-stretch">
-            <AnswerInput
-              answer={answer}
-              setAnswer={setAnswer}
-              maxLength={maxLength}
-              onSubmit={submit}
+        <AnswerInput
+          answer={answer}
+          setAnswer={setAnswer}
+          maxLength={maxLength}
+          onSubmit={submit}
               onWidthChange={setInputWidth}
             />
 
@@ -697,9 +697,9 @@ function DailyGameClient() {
               isLoading={submitting}
               fullWidth={false}
               width={inputWidth}
-            />
-          </div>
-        </div>
+        />
+      </div>
+      </div>
       </main>
     </div>
   )

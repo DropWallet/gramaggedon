@@ -106,7 +106,7 @@
 @keyframes scanline {
   0% {
     transform: translate3d(0, 200000%, 0);
-  }
+}
 }
 @keyframes scanlines {
   0% {

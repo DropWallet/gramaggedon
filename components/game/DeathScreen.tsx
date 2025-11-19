@@ -5,6 +5,9 @@ import Link from 'next/link'
 interface DeathScreenProps {
   correctWord?: string
   gameResult?: {
+    solvedWords?: Record<string, number[]> // V2: which words were solved per round
+    roundStartTimes?: Record<string, string> // V2: round start times
+    completedAt?: Date | null
     roundResults?: Array<{
       roundNumber: number
       correctAttempts: number
@@ -57,12 +60,138 @@ export default function DeathScreen({ correctWord, gameResult }: DeathScreenProp
       submissionAttempts: gameResult.submissionAttempts?.length || 0,
       anagrams: gameResult.game.anagrams?.length || 0,
       rounds: gameResult.game.rounds?.length || 0,
+      hasSolvedWords: !!gameResult.solvedWords,
+      hasRoundStartTimes: !!gameResult.roundStartTimes,
     })
 
-    // Check if this is a daily game (has rounds) or competitive game (has roundResults)
-    const isDailyGame = !!gameResult.game.rounds
+    // Check if this is a v2 daily game (has solvedWords and roundStartTimes)
+    const isV2DailyGame = !!gameResult.solvedWords && !!gameResult.roundStartTimes
 
-    if (isDailyGame && gameResult.game.rounds) {
+    if (isV2DailyGame && gameResult.game.rounds) {
+      // V2 daily game: calculate from solvedWords and roundStartTimes
+      const solvedWords = gameResult.solvedWords as Record<string, number[] | Array<{ index: number; solvedAt: string }>>
+      const roundStartTimes = gameResult.roundStartTimes as Record<string, string>
+      
+      // Helper to get solved indices (handles both old and new formats)
+      const getSolvedIndices = (roundKey: string): number[] => {
+        const roundData = solvedWords[roundKey]
+        if (!roundData) return []
+        if (Array.isArray(roundData) && roundData.length > 0 && typeof roundData[0] === 'object' && 'solvedAt' in roundData[0]) {
+          return (roundData as Array<{ index: number; solvedAt: string }>).map(e => e.index).sort((a, b) => a - b)
+        }
+        return (roundData as number[]).sort((a, b) => a - b)
+      }
+      
+      // Count completed rounds (rounds with at least one solved word)
+      const completedRounds = gameResult.game.rounds.filter(r => {
+        const roundKey = String(r.roundNumber)
+        const solvedInRound = getSolvedIndices(roundKey)
+        return solvedInRound.length > 0
+      })
+      roundsCompleted = completedRounds.length
+
+      if (completedRounds.length > 0) {
+        // Calculate round times
+        const roundTimes: number[] = []
+        completedRounds.forEach(r => {
+          const roundKey = String(r.roundNumber)
+          const startTime = roundStartTimes[roundKey]
+            if (startTime) {
+              const start = new Date(startTime).getTime()
+              const solvedIndices = getSolvedIndices(roundKey)
+              const totalWordsInRound = r.words.length
+              let endTime: number
+              
+              if (solvedIndices.length === totalWordsInRound) {
+                // All words solved - try to use next round's start time for accurate completion time
+                const nextRoundKey = String(r.roundNumber + 1)
+                const nextRoundStartTime = roundStartTimes[nextRoundKey]
+                
+                if (nextRoundStartTime) {
+                  // Use next round's start time as this round's end time (most accurate)
+                  endTime = new Date(nextRoundStartTime).getTime()
+                } else {
+                  // Next round hasn't started - estimate based on word distribution
+                  // Assume words were solved at 1/3, 2/3, and 3/3 of the round
+                  // Round ends when last word is solved, so estimate ~90% of round duration
+                  endTime = start + (180 * 1000 * 0.9) // ~162 seconds
+                }
+              } else {
+                // Round not completed - use actual elapsed time (capped at 180s)
+                const elapsed = new Date().getTime() - start
+                endTime = Math.min(start + elapsed, start + (180 * 1000))
+              }
+              const duration = Math.floor((endTime - start) / 1000) // seconds
+              roundTimes.push(duration)
+            }
+        })
+
+        if (roundTimes.length > 0) {
+          // Average round time
+          const totalRoundTime = roundTimes.reduce((sum, time) => sum + time, 0)
+          avgRoundTime = formatTime(Math.floor(totalRoundTime / roundTimes.length))
+
+          // Quickest round time
+          const quickest = Math.min(...roundTimes)
+          quickestRoundTime = formatTime(quickest)
+
+          // Calculate word times from precise timestamps (if available) or estimate
+          const wordTimes: number[] = []
+          completedRounds.forEach(r => {
+            const roundKey = String(r.roundNumber)
+            const startTime = roundStartTimes[roundKey]
+            
+            if (startTime) {
+              const roundStart = new Date(startTime).getTime()
+              
+              // Try to get precise timestamps from solvedWords entries
+              const roundData = solvedWords[roundKey] || []
+              const hasPreciseTimestamps = Array.isArray(roundData) && roundData.length > 0 && 
+                typeof roundData[0] === 'object' && 'solvedAt' in roundData[0]
+              
+              if (hasPreciseTimestamps) {
+                // Use precise timestamps from solvedWords
+                const entries = roundData as Array<{ index: number; solvedAt: string }>
+                entries.forEach(entry => {
+                  const solvedTime = new Date(entry.solvedAt).getTime()
+                  const wordTime = Math.floor((solvedTime - roundStart) / 1000) // seconds
+                  wordTimes.push(Math.max(1, wordTime))
+                })
+              } else {
+                // Fallback: estimate round end time and distribute evenly
+                const indices = roundData as number[]
+                const totalWordsInRound = r.words.length
+                let roundEnd: number
+                if (indices.length === totalWordsInRound) {
+                  roundEnd = roundStart + (180 * 1000)
+                } else {
+                  roundEnd = Math.min(new Date().getTime(), roundStart + (180 * 1000))
+                }
+                const roundDuration = Math.floor((roundEnd - roundStart) / 1000)
+                
+                // Distribute round time evenly across solved words
+                const avgTimePerWord = Math.floor(roundDuration / indices.length)
+                indices.forEach((_, index) => {
+                  const wordTime = Math.floor((avgTimePerWord * (index + 1)) - (avgTimePerWord / 2))
+                  wordTimes.push(Math.max(1, wordTime))
+                })
+              }
+            }
+          })
+
+          if (wordTimes.length > 0) {
+            // Average word time
+            const totalWordTime = wordTimes.reduce((sum, time) => sum + time, 0)
+            avgWordTime = formatTime(Math.floor(totalWordTime / wordTimes.length))
+
+            // Quickest word time
+            const quickestWord = Math.min(...wordTimes)
+            quickestWordTime = formatTime(quickestWord)
+          }
+        }
+      }
+    } else if (gameResult.game.rounds) {
+      // V1 daily game: calculate from rounds and words
       // Daily game: calculate from rounds and words
       const rounds = gameResult.game.rounds
       const completedRounds = rounds.filter(r => r.words.some(w => w.solvedAt))

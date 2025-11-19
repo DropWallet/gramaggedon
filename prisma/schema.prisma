@@ -164,6 +164,8 @@ model GameResult {
   // Single-player daily mode completion
   completedAt     DateTime?
   score           Int     @default(0)
+  solvedWords     Json?   // Per-user progress: { "1": [1, 2, 3], "2": [1, 2], "3": [] } - roundNumber -> array of word indices
+  roundStartTimes Json?   // Per-round start times: { "1": "2025-11-18T...", "2": "2025-11-18T..." } - roundNumber -> ISO timestamp
   
   // Connection tracking (for reconnection window)
   disconnectedAt  DateTime?  // When player disconnected
