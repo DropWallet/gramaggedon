@@ -402,28 +402,39 @@ export async function submitAnswerV2(opts: {
 }) {
   const { gameId, roundNumber, wordIndex, guess } = opts
   
-  // Get game and user's result
+  // Get game (only current round) and user's result
   const [game, result] = await Promise.all([
     prisma.game.findUnique({
       where: { id: gameId },
-      include: {
-        rounds: {
-          include: { words: true },
-          orderBy: { roundNumber: 'asc' }
-        }
+      select: {
+        id: true,
+        maxRounds: true
       }
     }),
     prisma.gameResult.findFirst({
       where: {
         gameId,
         OR: opts.userId ? [{ userId: opts.userId }] : [{ sessionId: opts.sessionId }]
+      },
+      select: {
+        id: true,
+        solvedWords: true,
+        completedAt: true
       }
     })
   ])
   
   if (!game || !result) throw new Error('Game or result not found')
   
-  const round = game.rounds.find(r => r.roundNumber === roundNumber)
+  // Fetch only the current round with words
+  const round = await prisma.gameRound.findFirst({
+    where: {
+      gameId,
+      roundNumber
+    },
+    include: { words: true }
+  })
+  
   if (!round) throw new Error('Round not found')
   
   const word = round.words.find(w => w.index === wordIndex)
@@ -474,8 +485,14 @@ export async function submitAnswerV2(opts: {
     return { isCorrect: true, roundComplete: false }
   }
   
-  // Round complete - check if game is complete (all rounds have all words solved)
-  const allRoundsComplete = game.rounds.every(r => {
+  // Round complete - check if game is complete
+  // Only fetch all rounds when needed (when current round is complete)
+  const allRounds = await prisma.gameRound.findMany({
+    where: { gameId },
+    include: { words: true },
+    orderBy: { roundNumber: 'asc' }
+  })
+  const allRoundsComplete = allRounds.every(r => {
     const rKey = String(r.roundNumber)
     const solved = getSolvedIndices(updatedSolvedWords, rKey)
     return solved.length === r.words.length
