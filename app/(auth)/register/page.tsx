@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { signIn } from 'next-auth/react'
 import { getStoredSessionId } from '@/lib/anonymous'
 import YellowLink from '@/components/ui/YellowLink'
+import StaticSkull from '@/components/StaticSkull'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -103,12 +104,7 @@ export default function RegisterPage() {
         {/* Skull icon */}
         <div className="absolute top-4 inset-x-0 flex justify-center z-10">
           <Link href="/" className="block">
-          <Image
-            src="/skull-signup.png"
-            alt="Skull"
-            width={49}
-            height={48}
-          />
+            <StaticSkull />
           </Link>
         </div>
 

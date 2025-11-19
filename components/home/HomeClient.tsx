@@ -6,6 +6,7 @@ import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import StatsOverlay from '@/components/stats/StatsOverlay'
 import Logo from '@/components/Logo'
+import AnimatedSkull from './AnimatedSkull'
 import { getOrCreateSessionId } from '@/lib/anonymous'
 
 const LogoutLink = dynamic(() => import('@/components/LogoutLink'), { ssr: false })
@@ -166,13 +167,7 @@ export default function HomeClient({ user }: HomeClientProps) {
 
           <section className="home-content">
             <div className="home-copy">
-              <Image
-                src="/skull-signup.png"
-                alt="Skull"
-                width={49}
-                height={48}
-                className="mb-4"
-              />
+              <AnimatedSkull />
               <span className="text-body-large text-[color:var(--color-accent-pink)]">
                 Solve 9 anagrams in 9 minutes.
                 <br />

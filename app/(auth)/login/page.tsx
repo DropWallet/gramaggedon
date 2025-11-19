@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import YellowLink from '@/components/ui/YellowLink'
+import StaticSkull from '@/components/StaticSkull'
 
 function LoginForm() {
   const router = useRouter()
@@ -79,14 +80,9 @@ function LoginForm() {
         {/* Skull icon */}
         <div className="absolute top-4 inset-x-0 flex justify-center z-10">
           <Link href="/" className="block">
-            <Image
-              src="/skull-signup.png"
-              alt="Skull"
-              width={49}
-              height={48}
-            />
+            <StaticSkull />
           </Link>
-          </div>
+        </div>
 
         <div className="flex-1 flex items-center justify-center w-full">
           <section className="home-content py-10">
