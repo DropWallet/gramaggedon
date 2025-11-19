@@ -93,7 +93,7 @@ export default function VictoryScreen({ gameResult }: VictoryScreenProps) {
               let endTime: number
               if (r.endedAt) {
                 endTime = new Date(r.endedAt).getTime()
-              } else if (gameResult.completedAt && r.roundNumber === gameResult.game.rounds.length) {
+              } else if (gameResult.completedAt && gameResult.game.rounds && r.roundNumber === gameResult.game.rounds.length) {
                 // Last round - use completedAt
                 endTime = new Date(gameResult.completedAt).getTime()
               } else {
@@ -151,7 +151,7 @@ export default function VictoryScreen({ gameResult }: VictoryScreenProps) {
                 let roundEnd: number
                 if (r.endedAt) {
                   roundEnd = new Date(r.endedAt).getTime()
-                } else if (gameResult.completedAt && r.roundNumber === gameResult.game.rounds.length) {
+                } else if (gameResult.completedAt && gameResult.game.rounds && r.roundNumber === gameResult.game.rounds.length) {
                   roundEnd = new Date(gameResult.completedAt).getTime()
                 } else {
                   roundEnd = roundStart + (180 * 1000)
