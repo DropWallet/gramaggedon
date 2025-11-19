@@ -305,11 +305,11 @@ body { background: var(--color-bg); }
 }
 .home-content {
   display: flex; flex-direction: column; align-items: center; gap: var(--space-gap-lg);
-  padding: 0 12px;
   max-width: 440px; width: 100%; margin: 0 auto;
 }
 .home-copy {
   display: flex; flex-direction: column; align-items: center; gap: var(--space-gap-sm); align-self: stretch;
+  padding: 0 12px;
   color: var(--color-accent-pink);
 }
 .home-footer {
@@ -540,7 +540,7 @@ body { background: var(--color-bg); }
   width: 100%;
   height: 48px;
   position: absolute;
-  top: 138px;
+  top: 136px;
   left: 0;
   gap: 6px;
   padding: 12px 0;
@@ -569,7 +569,7 @@ body { background: var(--color-bg); }
   width: 100%;
   height: 48px;
   position: absolute;
-  top: 138px;
+  top: 136px;
   left: 0;
   gap: 6px;
   padding: 12px 0;
