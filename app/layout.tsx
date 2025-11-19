@@ -31,8 +31,8 @@ const rubik = Rubik({
   style: ['normal', 'italic'],
 })
 export const metadata: Metadata = {
-  title: 'Anagram Royale',
-  description: 'Test your wits twice a day with an anagram fight to the death',
+  title: 'Gramageddon',
+  description: 'Solve 9 anagrams in 9 minutes, daily. Or die.',
 }
 
 export default function RootLayout({
