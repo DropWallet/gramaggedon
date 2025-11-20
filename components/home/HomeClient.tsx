@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic'
 import StatsOverlay from '@/components/stats/StatsOverlay'
 import Logo from '@/components/Logo'
 import AnimatedSkull from './AnimatedSkull'
+import ClaimGameModal from '@/components/ClaimGameModal'
 import { getOrCreateSessionId } from '@/lib/anonymous'
 
 const LogoutLink = dynamic(() => import('@/components/LogoutLink'), { ssr: false })
@@ -23,10 +24,20 @@ export default function HomeClient({ user }: HomeClientProps) {
   const [countdown, setCountdown] = useState<string>('00:00:00')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [gameNumber, setGameNumber] = useState<number>(1)
+  const [showClaimModal, setShowClaimModal] = useState(false)
 
-  // Get session ID for logged-out users
+  // Get session ID for logged-out users (also needed when logged in to check for anonymous games)
   const [sessionIdReady, setSessionIdReady] = useState(false)
   const claimedRef = useRef(false) // Track if we've already attempted to claim games
+  const hasCheckedClaim = useRef(false) // Track if we've checked for anonymous games
+  const previousUserIdRef = useRef<string | null>(null) // Track previous user to detect user switches
+  
+  // Helper function to get declined key for localStorage
+  const getDeclinedKey = (sessionId: string | null) => {
+    if (!sessionId) return null
+    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+    return `anagram_declined_${sessionId}_${today}`
+  }
   
   useEffect(() => {
     try {
@@ -39,40 +50,146 @@ export default function HomeClient({ user }: HomeClientProps) {
       setSessionIdReady(true)
     }
   }, [])
-
-  // Claim anonymous games when user logs in
+  
+  // Clear sessionId only when a different user logs in (to prevent cross-user claiming)
   useEffect(() => {
-    // Only claim if:
+    if (user?.id && previousUserIdRef.current && previousUserIdRef.current !== user.id) {
+      // Different user logged in - clear sessionId to prevent cross-user claiming
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('anagram_session_id')
+      }
+      // Reset sessionId state to force regeneration
+      setSessionId(null)
+      setSessionIdReady(false)
+      hasCheckedClaim.current = false
+      claimedRef.current = false
+      // Regenerate sessionId for the new user
+      try {
+        const sid = getOrCreateSessionId()
+        setSessionId(sid)
+        setSessionIdReady(true)
+      } catch {
+        setSessionId(null)
+        setSessionIdReady(true)
+      }
+    }
+    previousUserIdRef.current = user?.id || null
+  }, [user?.id])
+
+  // Check for anonymous games when user logs in (show modal instead of auto-claiming)
+  useEffect(() => {
+    // Only check if:
     // 1. User is logged in
     // 2. SessionId is ready and exists
-    // 3. We haven't claimed yet (prevent double-claiming)
-    if (!user?.id || !sessionIdReady || !sessionId || claimedRef.current) return
+    // 3. We haven't checked yet for this user
+    if (!user?.id || !sessionIdReady || !sessionId || hasCheckedClaim.current) return
 
-    // Mark as claimed immediately to prevent double-claiming
-    claimedRef.current = true
-
-    async function claimGames() {
-      try {
-        await fetch('/api/daily-v2/claim', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId }),
-        })
-        // Claiming is best-effort, no need to show success/error to user
-        // The status check will pick up the claimed game on next check
-      } catch (error) {
-        console.error('Error claiming games:', error)
-        // Silent failure - user can still play, games will be claimed when they visit /daily-v2
+    // Check if user has declined to claim today
+    const declinedKey = getDeclinedKey(sessionId)
+    if (declinedKey && typeof window !== 'undefined') {
+      const hasDeclined = localStorage.getItem(declinedKey)
+      if (hasDeclined) {
+        hasCheckedClaim.current = true
+        return // Don't show modal if user declined today
       }
     }
 
-    claimGames()
+    hasCheckedClaim.current = true
+
+    async function checkForAnonymousGame() {
+      try {
+        const res = await fetch(`/api/daily-v2/check-claim?sessionId=${encodeURIComponent(sessionId)}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.hasAnonymousGame) {
+            setShowClaimModal(true)
+          }
+        }
+      } catch (error) {
+        console.error('Error checking for anonymous game:', error)
+      }
+    }
+
+    checkForAnonymousGame()
   }, [user?.id, sessionId, sessionIdReady])
 
-  // Reset claimedRef when user logs out (so we can claim again if they log back in)
+  // Handle claim confirmation
+  const handleClaimConfirm = async () => {
+    setShowClaimModal(false)
+    claimedRef.current = true
+    try {
+      await fetch('/api/daily-v2/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      })
+      // Refresh status to show claimed game
+      window.location.reload()
+    } catch (error) {
+      console.error('Error claiming game:', error)
+    }
+  }
+
+  // Handle claim cancellation
+  const handleClaimCancel = async () => {
+    setShowClaimModal(false)
+    
+    if (!sessionId) {
+      hasCheckedClaim.current = true
+      claimedRef.current = true
+      return
+    }
+    
+    try {
+      // Delete the anonymous game
+      await fetch('/api/daily-v2/delete-anonymous', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      })
+      
+      // Store declined state in localStorage (scoped to today)
+      const declinedKey = getDeclinedKey(sessionId)
+      if (declinedKey && typeof window !== 'undefined') {
+        localStorage.setItem(declinedKey, 'true')
+      }
+      
+      // Mark that we've checked so we don't show the modal again
+      hasCheckedClaim.current = true
+      claimedRef.current = true
+      
+      // Refresh status to update UI (remove countdown timer)
+      const url = sessionId 
+        ? `/api/daily-v2/status?sessionId=${encodeURIComponent(sessionId)}` 
+        : '/api/daily-v2/status'
+      const res = await fetch(url)
+      if (res.ok) {
+        const data = await res.json()
+        setHasPlayed(data.hasPlayed || false)
+      }
+    } catch (error) {
+      console.error('Error declining claim:', error)
+      hasCheckedClaim.current = true
+      claimedRef.current = true
+    }
+  }
+
+  // Reset claimedRef when user logs out (but keep sessionId for when they log back in)
   useEffect(() => {
     if (!user?.id) {
       claimedRef.current = false
+      hasCheckedClaim.current = false
+      // Don't clear sessionId on logout - we need it to check for anonymous games when they log back in
+      // sessionId will only be cleared when a different user logs in (handled above)
+      // Re-read sessionId from localStorage to ensure it's available for status check
+      try {
+        const sid = getOrCreateSessionId()
+        setSessionId(sid)
+        setSessionIdReady(true)
+      } catch {
+        setSessionId(null)
+        setSessionIdReady(true)
+      }
     }
   }, [user?.id])
 
@@ -213,7 +330,8 @@ export default function HomeClient({ user }: HomeClientProps) {
                     paddingBottom: '12px',
                     paddingLeft: '16px',
                     paddingRight: '16px',
-                    gap: '4px'
+                    gap: '4px',
+                    background: 'var(--color-bg)'
                   }}
                 >
                   <div 
@@ -331,6 +449,11 @@ export default function HomeClient({ user }: HomeClientProps) {
       </div>
 
       <StatsOverlay isOpen={showStats} onClose={() => setShowStats(false)} />
+      <ClaimGameModal 
+        isOpen={showClaimModal}
+        onConfirm={handleClaimConfirm}
+        onCancel={handleClaimCancel}
+      />
     </>
   )
 }

@@ -203,7 +203,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={isLoading || isGoogleLoading}
-                  className="btn-primary btn-primary--small disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="btn-primary--no-border btn-primary--no-border--small disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <span className="text-body-small">
                     {isLoading ? 'Creating account...' : 'Create account'}

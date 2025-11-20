@@ -204,12 +204,17 @@ export async function getDailyGameV2(userId?: string | null, sessionId?: string 
   // When both userId and sessionId are provided, check for games separately
   // This ensures we can claim anonymous games even if a userId game exists
   if (userId && sessionId) {
-    // First, check for anonymous game with this sessionId
+    // Get today's date range for filtering
+    const today = startOfDay(new Date())
+    const tomorrow = addDays(today, 1)
+    
+    // First, check for anonymous game with this sessionId created today
     anonymousResult = await prisma.gameResult.findFirst({
       where: {
         gameId: puzzle.id,
         sessionId: sessionId,
         userId: null, // Only anonymous games
+        createdAt: { gte: today, lt: tomorrow }, // Only today's games
       },
       include: {
         game: {
