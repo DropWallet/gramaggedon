@@ -97,6 +97,7 @@ export default function HomeClient({ user }: HomeClientProps) {
     hasCheckedClaim.current = true
 
     async function checkForAnonymousGame() {
+      if (!sessionId) return // TypeScript guard
       try {
         const res = await fetch(`/api/daily-v2/check-claim?sessionId=${encodeURIComponent(sessionId)}`)
         if (res.ok) {
