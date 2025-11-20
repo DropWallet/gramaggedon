@@ -64,10 +64,11 @@ export async function GET(request: Request) {
     }
     
     // Check if user has played today's game (either completed or failed)
-    // A user has "played" if they have ANY GameResult for today's puzzle
+    // A user has "played" if they have ANY GameResult for today's puzzle created today
     const allResults = await prisma.gameResult.findMany({
       where: {
         gameId: puzzle.id,
+        createdAt: { gte: today, lt: tomorrow }, // Only count GameResults created today
         OR: orConditions.length > 0 ? orConditions : undefined,
       },
       select: {
